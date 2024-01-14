@@ -32,7 +32,7 @@ def parse_architecture_code(code):
     return layers
 
 
-def generate_nas_search_space(parsed_layers):
+def generate_layers_search_space(parsed_layers):
     config = configparser.ConfigParser()
     config.read('config.ini')
 
@@ -74,14 +74,14 @@ def generate_ht_search_space():
     return search_space
 
 
-def show_population(population, search_space, generation, logs_dir, historical_best_fitness, fittest_individual):
+def show_population(population, generation, logs_dir, historical_best_fitness, fittest_individual):
     txt_filename = f'GA_generation_{generation}.txt'
     txt_filepath = os.path.join(logs_dir, txt_filename)
     with open(txt_filepath, 'w') as txt_file:
         for j, ind in enumerate(population):
             txt_file.write(f"Individual {j} - Genes: {ind.chromosome}, Fitness: {ind.fitness}\n")
         txt_file.write(
-            f"Historical Fittest individual: Genes {fittest_individual}, Fitness: {historical_best_fitness}")
+            f"Historical Fittest individual - Genes: {fittest_individual}, Fitness: {historical_best_fitness}")
 
     print(f"Text file saved: {txt_filepath}")
 

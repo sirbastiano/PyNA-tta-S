@@ -1,9 +1,11 @@
 import torch
 import torchvision
+from torchvision import transforms
 import pytorch_lightning as pl
 import configparser
 from classes.generic_lightning_module import GenericLightningNetwork
 from wake_classifier.dataset import xAIWakesDataModule
+from L0_thraws_classifier.dataset_weighted import SentinelDataset, SentinelDataModule
 
 
 def compute_fitness_value_nas(position, keys, architecture):
@@ -34,9 +36,8 @@ def compute_fitness_value_nas(position, keys, architecture):
     seed = config.getint(section='Computation', option='seed')
     pl.seed_everything(seed=seed, workers=True)  # For reproducibility
     torch.set_float32_matmul_precision("medium")  # to make lightning happy
-    torch.autograd.set_detect_anomaly(True)
     num_workers = config.getint(section='Computation', option='num_workers')
-    accelerator = "gpu" if torch.cuda.is_available() else "cpu"
+    accelerator = config.get(section='Computation', option='accelerator')
 
     # Get model parameters
     model_parameters = {}
@@ -53,6 +54,26 @@ def compute_fitness_value_nas(position, keys, architecture):
     # DATA
     csv_file = config['Dataset']['csv_path']
     root_dir = config['Dataset']['data_path']
+    num_classes = config.getint(section='Dataset', option='num_classes')
+
+    composed_transform = transforms.Compose([
+        transforms.Resize((256, 256)),
+        transforms.ToTensor(),
+        #transforms.Lambda(lambda x: x.view(-1, 256, 256))  # Reshaping to CxHxW
+    ])
+    dataset = SentinelDataset(
+        root_dir=root_dir,
+        transform=composed_transform,
+    )
+    image, label = dataset[0]  # Load one image from the dataset
+    in_channels = image.shape[0]  # Obtain the number of in channels. Height and Width are 256 x 256 due to transform
+    dm = SentinelDataModule(
+        root_dir=root_dir,
+        batch_size=round(float(bs)),
+        num_workers=num_workers,
+        transform=composed_transform,
+    )
+    """
     dm = xAIWakesDataModule(
         csv_file=csv_file,
         root_dir=root_dir,
@@ -60,10 +81,10 @@ def compute_fitness_value_nas(position, keys, architecture):
         num_workers=num_workers,
         transform=torchvision.transforms.ToTensor(),
     )
+    in_channels = 4
+    """
 
     # MODEL
-    in_channels = config.getint(section='Dataset', option='in_channels')  # take them from dataset
-    num_classes = config.getint(section='Dataset', option='num_classes')
     model = GenericLightningNetwork(
         parsed_layers=architecture,
         input_channels=in_channels,
@@ -83,9 +104,11 @@ def compute_fitness_value_nas(position, keys, architecture):
     trainer.fit(model, dm)
     trainer.validate(model, dm)
     results = trainer.test(model, dm)
-    acc = results[0].get('test_accuracy')
-    f1 = results[0].get('test_f1_score')
-    fitness = (4 * acc + 1 * f1) / 5
+    #acc = results[0].get('test_accuracy')
+    #f1 = results[0].get('test_f1_score')
+    # fitness = (4 * acc + 1 * f1) / 5
     # fitness = acc
+    mcc = results[0].get('test_mcc')
+    fitness = mcc
 
     return fitness

@@ -22,6 +22,7 @@ External dependencies include configparser, GA for NAS, and GWO/PSO for HT.
 import configparser
 from optimizers import gwo, pso, ga
 import functions
+from functions.fitness import compute_fitness_value_nas as compute_fitness_value
 import time
 
 if __name__ == '__main__':
@@ -43,6 +44,8 @@ if __name__ == '__main__':
 
     # NAS
     if nas_check:
+        print("\n*** Network Architecture Search ***\n")
+
         # Define NAS parameters and run GA
         max_layers = config.getint('NAS', 'max_layers')
         max_iterations = int(config['GA']['max_iterations'])
@@ -66,29 +69,30 @@ if __name__ == '__main__':
         with open(f"{log_path}/nas_results.txt", "w") as file:
             file.write(f"Best architecture: {nas_result['position']}")
 
+    # Use NAS result if available, otherwise load from config
+    architecture_code = nas_result['position'] if nas_check else config['NAS']['architecture_code']
+    layers = functions.utils.parse_architecture_code(architecture_code)
+    print('HT Layers:', layers)
+    search_space = {}  # initialize search space for ht_check and final run
+    best_position = []  # initialize final best position for final run
+
     # HT
     if ht_check:
-        # Use NAS result if available, otherwise load from config
-        architecture_code = nas_result['position'] if nas_check else config['NAS']['architecture_code']
-        layers = functions.utils.parse_architecture_code(architecture_code)
-        print('HT Layers:', layers)
+        print("\n*** Hyperparameter Tuning ***\n")
 
         # Define HT search space
-        search_space = {}
-        if nas_check:
-            search_space_layers = functions.utils.generate_layers_search_space(layers)
-            for parameter in search_space_layers.keys():
-                search_space[parameter] = search_space_layers.get(parameter)
+        search_space_layers = functions.utils.generate_layers_search_space(layers)
+        for parameter in search_space_layers.keys():
+            search_space[parameter] = search_space_layers.get(parameter)
 
-        if ht_check:
-            search_space['log_learning_rate'] = (
-                float(config['Search Space']['log_lr_min']),
-                float(config['Search Space']['log_lr_max']),
-            )
-            search_space['batch_size'] = (
-                float(config['Search Space']['bs_min']),
-                float(config['Search Space']['bs_max']),
-            )
+        search_space['log_learning_rate'] = (
+            float(config['Search Space']['log_lr_min']),
+            float(config['Search Space']['log_lr_max']),
+        )
+        search_space['batch_size'] = (
+            float(config['Search Space']['bs_min']),
+            float(config['Search Space']['bs_max']),
+        )
         print('Search space:', search_space)
 
         # Retrieve optimizer information
@@ -136,6 +140,8 @@ if __name__ == '__main__':
             log_path,
         )
 
+        best_position = ht_result['position']
+
         # Print and write HT results
         print(f"HT completed. Best hyperparameters for architecture {architecture_code}: {ht_result}")
         with open(f"{log_path}/ht_{architecture_code}_results.txt", "w") as file:
@@ -143,3 +149,10 @@ if __name__ == '__main__':
 
     end_time = time.time()
     print(f"Process finished in {end_time - start_time} s.")
+
+    compute_fitness_value(
+        position=best_position,
+        keys=list(search_space.keys()),
+        architecture=layers,
+        is_final=True,
+        )

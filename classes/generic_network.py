@@ -54,7 +54,7 @@ class GenericNetwork(nn.Module):
         forward(x): Defines the forward pass of the model.
         get_activation_fn(activation): Returns the activation function based on the specified string.
         """
-    def __init__(self, parsed_layers, model_parameters, input_channels=4, input_height=256, input_width=256, num_classes=2):
+    def __init__(self, parsed_layers, model_parameters, input_channels=3, input_height=256, input_width=256, num_classes=2):
         super(GenericNetwork, self).__init__()
         self.layers = nn.ModuleList()
 

@@ -8,24 +8,6 @@ from classes.generic_network import GenericNetwork
 from datetime import datetime
 import matplotlib.pyplot as plt
 
-# NOTE: fix the paths
-# NOTE2: Good suggestions by ChatGPT
-# a) Validation of Parameters: Ensure that the model_parameters passed to GenericNetwork are validated or handled
-# appropriately within GenericNetwork. For instance, if certain expected parameters are missing, GenericNetwork
-# should either use default values or raise informative errors.
-#
-# b) Resource Management: Given that NAS can be computationally intensive, monitor resource usage, particularly if
-# you're running multiple experiments or using large datasets.
-#
-# c) Error Handling and Logging: Consider adding error handling, especially around file operations and network
-# construction. Detailed logging can be very helpful for debugging and tracking the model's performance over time.
-#
-# d) Documentation and Comments: Adding docstrings to your class and methods explaining their functionality, inputs,
-# and outputs can make the code more understandable and maintainable, especially in complex projects like NAS.
-#
-# e) Testing with Sample Parameters: Before fully integrating this setup into your NAS framework, it might be
-# beneficial to test the GenericLightningNetwork with a set of sample parameters to ensure that the network is
-# constructed and trains as expected.
 
 class GenericLightningNetwork(pl.LightningModule):
     def __init__(self, parsed_layers, model_parameters, input_channels, num_classes, learning_rate=1e-3):
@@ -59,7 +41,7 @@ class GenericLightningNetwork(pl.LightningModule):
             'train_loss': loss,
             'train_accuracy': accuracy,
             'train_f1_score': f1_score,
-            'train_mcc': mcc,
+            'train_mcc': mcc.float(),
         },
             on_step=False,
             on_epoch=True,
@@ -89,7 +71,7 @@ class GenericLightningNetwork(pl.LightningModule):
             'test_loss': loss,
             'test_accuracy': accuracy,
             'test_f1_score': f1_score,
-            'test_mcc': mcc,
+            'test_mcc': mcc.float(),
         },
             on_step=False,
             on_epoch=True,
@@ -103,7 +85,7 @@ class GenericLightningNetwork(pl.LightningModule):
         plt.xlabel('Prediction')
         plt.ylabel('Class')
         current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        plt.savefig(rf".\tb_logs\confusion_matrix_{current_datetime}.png")
+        plt.savefig(rf"./tb_logs/confusion_matrix_{current_datetime}.png")
         # plt.show()
 
     def _common_step(self, batch, batch_idx):
@@ -132,7 +114,7 @@ class GenericLightningNetwork(pl.LightningModule):
         plt.xlabel('Prediction')
         plt.ylabel('Class')
         current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        plt.savefig(rf".\tb_logs\confusion_matrix_predictions_{current_datetime}.png")
+        plt.savefig(rf"./tb_logs/confusion_matrix_predictions_{current_datetime}.png")
         plt.show()  # test block=False
 
     def configure_optimizers(self):

@@ -20,7 +20,7 @@ External dependencies include configparser, GA for NAS, and GWO/PSO for HT.
 
 # Imports
 import configparser
-from optimizers import gwo, pso, ga
+from optimizers import gwo, pso, ga, ga_concurrent, ga_concurrent_pp
 import functions
 from functions.fitness import compute_fitness_value_nas as compute_fitness_value
 import time
@@ -53,7 +53,7 @@ if __name__ == '__main__':
         log_path = str(config['GA']['logs_dir_GA'])
         mating_pool_cutoff = float(config['GA']['mating_pool_cutoff'])
         mutation_probability = float(config['GA']['mutation_probability'])
-        nas_result = ga.ga_optimizer(
+        nas_result = ga_concurrent_pp.ga_optimizer(
             max_layers=max_layers,
             max_iter=max_iterations,
             n_individuals=population_size,

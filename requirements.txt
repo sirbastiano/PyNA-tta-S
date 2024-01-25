@@ -1,0 +1,6 @@
+torch
+torchvision
+pytorch lightning
+torchmetrics
+matplotlib
+seaborn

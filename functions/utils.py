@@ -7,9 +7,9 @@ import os
 def parse_architecture_code(code):
     layers = []
     i = 0
-    while i < len(code) - 1:  # Exclude the last character for now
-        if code[i] in ['c', 'm']:
-            layer_type = 'Conv2D' if code[i] == 'c' else 'MBConv'
+    while i < len(code) - 2:  # Exclude the last two characters for pooling and head
+        if code[i] in ['c', 'm', 'p']:
+            layer_type = 'Conv2D' if code[i] == 'c' else 'MBConv' if code[i] == 'm' else 'CSPBlock'
             num_layers = int(code[i+1])
             activation_type = 'ReLU' if code[i+2] == 'r' else 'GELU'
 
@@ -19,9 +19,10 @@ def parse_architecture_code(code):
                     layers.append({'type': 'AvgPool'})
                 if 'M' in code:
                     layers.append({'type': 'MaxPool'})
-            i += 3
+
+            i += 3  # Move past the triplet
         else:
-            i += 1
+            i += 1  # Move past the pooling layer identifier
 
     # Process the last character for the head
     if code[-1] == 'C':
@@ -30,6 +31,7 @@ def parse_architecture_code(code):
         raise ValueError(f"Unknown head type: {code[-1]}")
 
     return layers
+
 
 
 def generate_layers_search_space(parsed_layers):
@@ -44,6 +46,9 @@ def generate_layers_search_space(parsed_layers):
         parameters = {
             'Conv2D': ['kernel_size', 'out_channels_coefficient'],
             'MBConv': ['expansion_factor'],
+            'CSPBlock': ['num_blocks'],
+            #'AvgPool': [],
+            #'MaxPool': [],
             # Add other layers as needed
         }
 

@@ -1,4 +1,5 @@
 import torch.nn as nn
+import modules
 import modules.conv2d
 import modules.mbconv
 import modules.relu
@@ -6,6 +7,7 @@ import modules.gelu
 import modules.classification_head
 import modules.avgpool
 import modules.maxpool
+import modules.csp
 import configparser
 
 
@@ -116,6 +118,31 @@ class GenericNetwork(nn.Module):
                 current_channels = current_channels
                 current_height = current_height
                 current_width = current_width
+
+            elif layer_type == 'CSPBlock':
+                # Extracting CSPBlock parameters
+                out_channels_coeff = float(model_parameters.get(
+                    f'CSPBlock_{index}_out_channels_coefficient',
+                    config['CSPBlock']['default_out_channels_coefficient']
+                ))
+                expansion_factor = int(model_parameters.get(
+                    f'CSPBlock_{index}_expansion_factor',
+                    config['CSPBlock']['default_expansion_factor']
+                ))
+                num_blocks = int(model_parameters.get(
+                    f'CSPBlock_{index}_num_blocks',
+                    config['CSPBlock']['default_num_blocks']
+                ))
+                out_channels = int(current_channels * out_channels_coeff)
+
+                layer = modules.csp.CSPBlock(
+                    in_channels=current_channels,
+                    #out_channels=current_channels,
+                    expansion_factor=expansion_factor,
+                    num_blocks=num_blocks,
+                    activation=self.get_activation_fn(layer_info['activation']),
+                )
+                current_channels = out_channels
 
             elif layer_type == 'AvgPool':
                 kernel_size = int(model_parameters.get(

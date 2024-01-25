@@ -24,6 +24,7 @@ setup(
         "torch",
         "torchvision",
         "torchmetrics",
+        "pytorch-lightning",
         "tqdm",
         "matplotlib",
         "seaborn",

@@ -1,13 +1,49 @@
 import torch
 import torch.nn as nn
-import modules.gelu
-import modules.mbconv
+from .activation import GELU
+
+
+class Conv2D(nn.Sequential):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, activation=GELU):
+        super(Conv2D, self).__init__(
+            nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding),
+            nn.BatchNorm2d(out_channels),
+            activation(),
+        )
+
+
+class MBConv(nn.Module):
+    def __init__(self, in_channels, out_channels, expansion_factor=4, activation=GELU):
+        expanded_channels = in_channels * expansion_factor
+        super(MBConv, self).__init__()
+        self.steps = nn.Sequential(
+            # Narrow to wide
+            nn.Conv2d(in_channels, expanded_channels, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(expanded_channels),
+            activation(),
+
+            # Wide to wide (depthwise convolution)
+            nn.Conv2d(expanded_channels, expanded_channels, kernel_size=3, stride=1, padding=1, groups=expanded_channels),
+            nn.BatchNorm2d(expanded_channels),
+            activation(),
+
+            # Wide to narrow
+            nn.Conv2d(expanded_channels, out_channels, kernel_size=1, stride=1, padding=0),
+            nn.BatchNorm2d(out_channels),
+            activation(),
+        )
+
+    def forward(self, x):
+        res = x
+        x = self.steps(x)
+        x = torch.add(x, res)
+        return x
 
 
 # Note: Currently implemented is actually a CSP-ized MBConv block.
 # TODO: Make a parent CSPBlock for various CSP-ized blocks. Change the name of the classes to more appropriate ones.
 class CSPBlock(nn.Module):
-    def __init__(self, in_channels, num_blocks=1, expansion_factor=4, activation=modules.gelu.GELU):
+    def __init__(self, in_channels, num_blocks=1, expansion_factor=4, activation=GELU):
         super(CSPBlock, self).__init__()
 
         # Use the same value for hidden_channels to avoid the issue with odd in_channels
@@ -16,7 +52,7 @@ class CSPBlock(nn.Module):
 
         # Main path (processed part)
         self.main_path = nn.Sequential(
-            *[modules.mbconv.MBConv(
+            *[MBConv(
                 in_channels=self.main_channels,
                 out_channels=self.main_channels,
                 expansion_factor=expansion_factor,
@@ -53,7 +89,7 @@ class CSPBlock(nn.Module):
         shortcut_data = self.shortcut_path(shortcut_data)
 
         # Concatenating the main and shortcut paths
-        combined = torch.cat((main_data, shortcut_data), dim=1)
+        combined = torch.cat(tensors=(main_data, shortcut_data), dim=1)
 
         # Apply final transition
         out = self.final_transition(combined)

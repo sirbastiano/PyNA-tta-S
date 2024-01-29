@@ -3,11 +3,7 @@ import random
 import matplotlib.pyplot as plt
 import os
 import numpy as np
-from classes.individual import Individual
-from functions.utils import show_population, calculate_statistics
-from functions.fitness import compute_fitness_value_nas as compute_fitness_value
-import functions.architecture_builder as builder
-from functions.utils import parse_architecture_code
+from .. import classes, functions
 import concurrent.futures
 
 
@@ -61,11 +57,11 @@ def mutation(children, mutation_probability):
                 gene = child.chromosome[gene_i]
                 # Mutate based on the type of gene
                 if len(gene) == 3:  # Triplet gene (convolutional layers)
-                    child.chromosome[gene_i] = builder.random_triplet_gene()
+                    child.chromosome[gene_i] = functions.architecture_builder.random_triplet_gene()
                 elif len(gene) == 1 and gene_i == len(child.chromosome) - 2:  # Pooling layer gene
-                    child.chromosome[gene_i] = builder.random_pooling_gene()
+                    child.chromosome[gene_i] = functions.architecture_builder.random_pooling_gene()
                 elif len(gene) == 1 and gene_i == len(child.chromosome) - 1:  # Head gene
-                    child.chromosome[gene_i] = builder.random_head_gene()
+                    child.chromosome[gene_i] = functions.architecture_builder.random_head_gene()
                 else:
                     print("Something went wrong with mutation.")
                     exit()
@@ -93,7 +89,7 @@ def remove_duplicates(population, max_layers):
             new_individual = None
             t = 0
             while new_individual is None or new_individual.architecture in unique_architectures or t == 50:
-                new_individual = Individual(max_layers)
+                new_individual = classes.Individual(max_layers)
                 t = t + 1
 
             # Replace the duplicate individual with the new unique individual
@@ -147,7 +143,7 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
     # Population Initialization
     population = []
     for i in range(n_individuals):
-        temp_individual = Individual(max_layers=max_layers)
+        temp_individual = classes.Individual(max_layers=max_layers)
         population.append(temp_individual)
 
     population = remove_duplicates(population=population, max_layers=max_layers)
@@ -155,7 +151,12 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
     print("Starting chromosome pool:")
     # Parallel Fitness Evaluation with Process Pool
     with concurrent.futures.ProcessPoolExecutor() as executor:
-        futures = [executor.submit(compute_fitness_value, position=[], keys=[], architecture=parse_architecture_code(i.architecture)) for i in population]
+        futures = [executor.submit(
+            functions.fitness.compute_fitness_value,
+            position=[],
+            keys=[],
+            architecture=functions.utils.parse_architecture_code(i.architecture)
+        ) for i in population]
         for i, future in enumerate(concurrent.futures.as_completed(futures)):
             population[i].fitness = future.result()
     
@@ -169,10 +170,10 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
     historical_best_fitness = population[0].fitness
     fittest_individual = population[0].architecture
     fittest_genes = population[0].chromosome
-    mean_fitness_vector[0], median_fitness_vector[0] = calculate_statistics(population, attribute='fitness')
+    mean_fitness_vector[0], median_fitness_vector[0] = functions.utils.calculate_statistics(population, attribute='fitness')
     best_fitness_vector[0] = historical_best_fitness
 
-    show_population(
+    functions.utils.show_population(
         population=population,
         generation=0,
         logs_dir=logs_directory,
@@ -189,7 +190,7 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
         # Create a mating pool
         mating_pool = population[:int(np.floor(mating_pool_cutoff * len(population)))].copy()
         for i in range(int(np.ceil((1 - mating_pool_cutoff) * len(population)))):
-            temp_individual = Individual(max_layers=max_layers)
+            temp_individual = classes.Individual(max_layers=max_layers)
             mating_pool.append(temp_individual)
 
         # Coupling and mating
@@ -212,7 +213,12 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
 
         # Parallel Fitness Evaluation in Each Generation with Process Pool
         with concurrent.futures.ProcessPoolExecutor() as executor:
-            futures = [executor.submit(compute_fitness_value, position=[], keys=[], architecture=parse_architecture_code(i.architecture)) for i in population]
+            futures = [executor.submit(
+                functions.fitness.compute_fitness_value,
+                position=[],
+                keys=[],
+                architecture=functions.utils.parse_architecture_code(i.architecture)
+            ) for i in population]
             for i, future in enumerate(concurrent.futures.as_completed(futures)):
                 population[i].fitness = future.result()
 
@@ -233,7 +239,7 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
         print(f"The best historical fitness is {historical_best_fitness},"
               f"with the most fit individual having the following genes: {fittest_genes}.")
 
-        show_population(
+        functions.utils.show_population(
             population=population,
             generation=t,
             logs_dir=logs_directory,
@@ -242,7 +248,7 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
         )
 
         # Update analytics
-        mean_fitness_vector[t], median_fitness_vector[t] = calculate_statistics(population, attribute='fitness')
+        mean_fitness_vector[t], median_fitness_vector[t] = functions.utils.calculate_statistics(population, attribute='fitness')
         best_fitness_vector[t] = historical_best_fitness
 
         t += 1

@@ -1,13 +1,5 @@
 import torch.nn as nn
-import modules
-import modules.conv2d
-import modules.mbconv
-import modules.relu
-import modules.gelu
-import modules.classification_head
-import modules.avgpool
-import modules.maxpool
-import modules.csp
+from .. import modules
 import configparser
 
 
@@ -55,7 +47,8 @@ class GenericNetwork(nn.Module):
         Methods:
         forward(x): Defines the forward pass of the model.
         get_activation_fn(activation): Returns the activation function based on the specified string.
-        """
+    """
+
     def __init__(self, parsed_layers, model_parameters, input_channels=3, input_height=256, input_width=256, num_classes=2):
         super(GenericNetwork, self).__init__()
         self.layers = nn.ModuleList()
@@ -88,7 +81,7 @@ class GenericNetwork(nn.Module):
 
                 out_channels = int(current_channels * out_channels_coeff)
 
-                layer = modules.conv2d.Conv2D(
+                layer = modules.convolution.Conv2D(
                     in_channels=current_channels,
                     out_channels=out_channels,
                     kernel_size=kernel_size,
@@ -108,7 +101,7 @@ class GenericNetwork(nn.Module):
                 ))
 
                 # Creating MBConv layer
-                layer = modules.mbconv.MBConv(
+                layer = modules.convolution.MBConv(
                     in_channels=current_channels,
                     out_channels=current_channels,
                     expansion_factor=expansion_factor,
@@ -135,7 +128,7 @@ class GenericNetwork(nn.Module):
                 ))
                 out_channels = int(current_channels * out_channels_coeff)
 
-                layer = modules.csp.CSPBlock(
+                layer = modules.convolution.CSPBlock(
                     in_channels=current_channels,
                     #out_channels=current_channels,
                     expansion_factor=expansion_factor,
@@ -154,7 +147,7 @@ class GenericNetwork(nn.Module):
                     config['AvgPool']['default_stride']
                 ))
 
-                layer = modules.avgpool.AvgPool(kernel_size=kernel_size, stride=stride)
+                layer = modules.pooling.AvgPool(kernel_size=kernel_size, stride=stride)
 
                 current_channels = current_channels
                 current_height = ((current_height - kernel_size) // stride) + 1
@@ -170,7 +163,7 @@ class GenericNetwork(nn.Module):
                     config['MaxPool']['default_stride']
                 ))
 
-                layer = modules.maxpool.MaxPool(kernel_size=kernel_size, stride=stride)
+                layer = modules.pooling.MaxPool(kernel_size=kernel_size, stride=stride)
 
                 current_channels = current_channels
                 current_height = ((current_height - kernel_size) // stride) + 1
@@ -180,23 +173,26 @@ class GenericNetwork(nn.Module):
                 # Calculate the input size for ClassificationHead
                 num_classes = int(config['ClassificationHead']['num_classes'])
                 input_size_for_head = current_height * current_width * current_channels
-                layer = modules.classification_head.ClassificationHead(input_size=input_size_for_head, num_classes=num_classes)
+                layer = modules.heads.ClassificationHead(input_size=input_size_for_head, num_classes=num_classes)
+
+            else:
+                raise ValueError(f"Unknown layer type: {layer_type}")
 
             self.layers.append(layer)
 
     @staticmethod
-    def get_activation_fn(activation):
+    def get_activation_fn(activation=modules.activation.GELU):
         if activation == 'ReLU':
-            return modules.relu.ReLU
+            return modules.activation.ReLU
         elif activation == 'GELU':
-            return modules.gelu.GELU
+            return modules.activation.GELU
         # Add more activation functions as needed
         else:
             raise ValueError(f"Unknown activation function: {activation}")
 
     def forward(self, x):
         for layer in self.layers:
-            if isinstance(layer, modules.classification_head.ClassificationHead):
+            if isinstance(layer, modules.heads.ClassificationHead):
                 # Flatten the output before feeding it into the ClassificationHead
                 x = x.view(x.size(0), -1)
             x = layer(x)

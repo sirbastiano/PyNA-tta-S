@@ -20,9 +20,7 @@ External dependencies include configparser, GA for NAS, and GWO/PSO for HT.
 
 # Imports
 import configparser
-from optimizers import gwo, pso, ga, ga_concurrent, ga_concurrent_pp
-import functions
-from functions.fitness import compute_fitness_value_nas as compute_fitness_value
+import pynattas as pnas
 import time
 
 if __name__ == '__main__':
@@ -53,7 +51,7 @@ if __name__ == '__main__':
         log_path = str(config['GA']['logs_dir_GA'])
         mating_pool_cutoff = float(config['GA']['mating_pool_cutoff'])
         mutation_probability = float(config['GA']['mutation_probability'])
-        nas_result = ga_concurrent_pp.ga_optimizer(
+        nas_result = pnas.optimizers.ga.ga_optimizer(
             max_layers=max_layers,
             max_iter=max_iterations,
             n_individuals=population_size,
@@ -71,7 +69,7 @@ if __name__ == '__main__':
 
     # Use NAS result if available, otherwise load from config
     architecture_code = nas_result['position'] if nas_check else config['NAS']['architecture_code']
-    layers = functions.utils.parse_architecture_code(architecture_code)
+    layers = pnas.functions.utils.parse_architecture_code(architecture_code)
     print('HT Layers:', layers)
     search_space = {}  # initialize search space for ht_check and final run
     best_position = []  # initialize final best position for final run
@@ -81,7 +79,7 @@ if __name__ == '__main__':
         print("\n*** Hyperparameter Tuning ***\n")
 
         # Define HT search space
-        search_space_layers = functions.utils.generate_layers_search_space(layers)
+        search_space_layers = pnas.functions.utils.generate_layers_search_space(layers)
         for parameter in search_space_layers.keys():
             search_space[parameter] = search_space_layers.get(parameter)
 
@@ -101,7 +99,7 @@ if __name__ == '__main__':
             max_iterations = int(config['GWO']['max_iterations'])
             population_size = int(config['GWO']['population_size'])
             log_path = str(config['GWO']['logs_dir_GWO'])
-            ht_result = gwo.gwo_optimizer(
+            ht_result = pnas.optimizers.gwo.gwo_optimizer(
                 architecture=layers,
                 search_space=search_space,
                 max_iter=max_iterations,
@@ -115,7 +113,7 @@ if __name__ == '__main__':
             cognitive_coefficient = float(config['PSO']['cognitive_coefficient'])
             social_coefficient = float(config['PSO']['social_coefficient'])
             inertia_coefficient = float(config['PSO']['inertia_coefficient'])
-            ht_result = pso.pso_optimizer(
+            ht_result = pnas.optimizers.pso.pso_optimizer(
                 architecture=layers,
                 search_space=search_space,
                 max_iter=max_iterations,
@@ -130,7 +128,7 @@ if __name__ == '__main__':
             exit()
 
         # Save HT results
-        functions.utils.save_and_print_results(
+        pnas.functions.utils.save_and_print_results(
             ht_result,
             search_space,
             architecture_code,
@@ -150,7 +148,7 @@ if __name__ == '__main__':
     end_time = time.time()
     print(f"Process finished in {end_time - start_time} s.")
 
-    compute_fitness_value(
+    pnas.functions.fitness.compute_fitness_value(
         position=best_position,
         keys=list(search_space.keys()),
         architecture=layers,

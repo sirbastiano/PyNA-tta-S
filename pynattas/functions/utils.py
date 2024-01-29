@@ -33,7 +33,6 @@ def parse_architecture_code(code):
     return layers
 
 
-
 def generate_layers_search_space(parsed_layers):
     config = configparser.ConfigParser()
     config.read('config.ini')

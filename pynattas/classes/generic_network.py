@@ -4,7 +4,7 @@ import modules.mbconv
 import modules.relu
 import modules.gelu
 import modules.classification_head
-import modules.avgpool
+import pynattas.modules.pooling
 import modules.maxpool
 import configparser
 
@@ -127,7 +127,7 @@ class GenericNetwork(nn.Module):
                     config['AvgPool']['default_stride']
                 ))
 
-                layer = modules.avgpool.AvgPool(kernel_size=kernel_size, stride=stride)
+                layer = modules.pooling.AvgPool(kernel_size=kernel_size, stride=stride)
 
                 current_channels = current_channels
                 current_height = ((current_height - kernel_size) // stride) + 1

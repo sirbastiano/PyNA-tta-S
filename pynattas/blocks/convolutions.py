@@ -7,29 +7,10 @@ import torch
 import torch.nn.functional as F
 from typing import Optional
 
-from activations import *
+from torchvision.ops import StochasticDepth
 
+from .activations import *
 
-class Conv2DBnAct(nn.Sequential):
-    """Combined Convolutional, Batch Normalization, and Activation block.
-
-    This block sequentially applies a 2D convolution, batch normalization, and an activation function. It's a basic building block for CNN architectures, ensuring feature normalization and non-linearity after convolution.
-
-    Args:
-        in_channels (int): Number of input channels.
-        out_channels (int): Number of output channels.
-        kernel_size (int, optional): Size of the convolving kernel. Defaults to 3.
-        stride (int, optional): Stride of the convolution. Defaults to 1.
-        padding (int, optional): Zero-padding added to both sides of the input. Defaults to 1.
-        activation (nn.Module, optional): Activation function to be used. Defaults to modules.relu.ReLU.
-    """
-
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, activation=ReLU):
-        super(Conv2DBnAct, self).__init__(
-            nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding),
-            nn.BatchNorm2d(out_channels),
-            activation(),
-        )
 
 class Conv2dPad(nn.Conv2d):
     """2D Convolutions with different padding modes.
@@ -85,6 +66,130 @@ class Conv2dPad(nn.Conv2d):
 
         else:
             return super().forward(x)
+
+
+class ConvNormAct(nn.Sequential):
+    """Utility module that stacks one convolution layer, a normalization layer and an activation function.
+
+    Example:
+        >>> ConvNormAct(32, 64, kernel_size=3)
+            ConvNormAct(
+                (conv): Conv2dPad(32, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                (norm): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                (act): ReLU()
+            )
+
+        >>> ConvNormAct(32, 64, kernel_size=3, normalization = None )
+            ConvNormAct(
+                (conv): Conv2dPad(32, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                (act): ReLU()
+            )
+
+        >>> ConvNormAct(32, 64, kernel_size=3, activation = None )
+            ConvNormAct(
+                (conv): Conv2dPad(32, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                (norm): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+            )
+
+    We also provide additional modules built on top of this one: `ConvBn`, `ConvAct`, `Conv3x3BnAct`
+    Args:
+            out_features (int): Number of input features
+            out_features (int): Number of output features
+            conv (nn.Module, optional): Convolution layer. Defaults to Conv2dPad.
+            normalization (nn.Module, optional): Normalization layer. Defaults to nn.BatchNorm2d.
+            activation (nn.Module, optional): Activation function. Defaults to nn.ReLU.
+    """
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        conv: nn.Module = Conv2dPad,
+        activation: Optional[nn.Module] = nn.ReLU,
+        normalization: Optional[nn.Module] = nn.BatchNorm2d,
+        bias: bool = False,
+        **kwargs
+    ):
+        super().__init__()
+        self.add_module("conv", conv(in_features, out_features, **kwargs, bias=bias))
+        if normalization:
+            self.add_module("norm", normalization(out_features))
+        if activation:
+            self.add_module("act", activation())
+
+
+class ConvNormRegAct(nn.Sequential):
+    """Utility module that stacks one convolution layer, a normalization layer, a regularization layer and an activation function.
+
+    Example:
+        >>> ConvNormDropAct(32, 64, kernel_size=3)
+            ConvNormDropAct(
+                (conv): Conv2dPad(32, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                (norm): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                (reg): StochasticDepth(p=0.2)
+                (act): ReLU()
+            )
+    """
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        conv: nn.Module = Conv2dPad,
+        activation: Optional[nn.Module] = nn.ReLU,
+        normalization: Optional[nn.Module] = nn.BatchNorm2d,
+        regularization: Optional[nn.Module] = partial(StochasticDepth, mode="batch"),
+        p: float = 0.2,
+        bias: bool = False,
+        **kwargs
+    ):
+        super().__init__()
+        self.add_module("conv", conv(in_features, out_features, **kwargs, bias=bias))
+        if normalization:
+            self.add_module("norm", normalization(out_features))
+        if regularization:
+            self.add_module("reg", regularization(p=p))
+        if activation:
+            self.add_module("act", activation())
+
+
+class NormActConv(nn.Sequential):
+    """A Sequential layer composed by a normalization, an activation and a convolution layer. This is usually known as a 'Preactivation Block'
+
+    Args:
+        in_features (int): Number of input features
+        out_features (int): Number of output features
+        conv (nn.Module, optional): [description]. Defaults to Conv2dPad.
+        normalization (nn.Module, optional): [description]. Defaults to nn.BatchNorm2d.
+        activation (nn.Module, optional): [description]. Defaults to nn.ReLU.
+    """
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        conv: nn.Module = Conv2dPad,
+        normalization: Optional[nn.Module] = nn.BatchNorm2d,
+        activation: Optional[nn.Module] = ReLUInPlace,
+        *args,
+        **kwargs
+    ):
+        super().__init__()
+        if normalization:
+            self.add_module("norm", normalization(in_features))
+        if activation:
+            self.add_module("act", activation())
+        self.add_module("conv", conv(in_features, out_features, *args, **kwargs))
+
+
+ConvBnAct = partial(ConvNormAct, normalization=nn.BatchNorm2d)
+ConvBn = partial(ConvBnAct, activation=None)
+ConvAct = partial(ConvBnAct, normalization=None, bias=True)
+Conv3x3BnAct = partial(ConvBnAct, kernel_size=3)
+BnActConv = partial(NormActConv, normalization=nn.BatchNorm2d)
+ConvBnDropAct = partial(
+    ConvNormRegAct, normalization=nn.BatchNorm2d, regularization=nn.Dropout2d
+)
 
 
 class DenseNetBlock(nn.Module):
@@ -231,7 +336,7 @@ class ResidualAdd(nn.Module):
 # MobileNetLikeBlock
 # from https://github.com/FrancescoSaverioZuppichini/BottleNeck-InvertedResidual-FusedMBConv-in-PyTorch
 class MBConv_MobileNetLike(nn.Sequential):
-    def __init__(self, in_channels, out_channels, expansion_factor=4, kernel_size=3, stride=1, activation=modules.relu.ReLU):
+    def __init__(self, in_channels, out_channels, expansion_factor=4, kernel_size=3, stride=1, activation=ReLU):
         # use ResidualAdd if features match, otherwise a normal Sequential
         residual = ResidualAdd if in_channels == out_channels else nn.Sequential
         expanded_channels = in_channels * expansion_factor

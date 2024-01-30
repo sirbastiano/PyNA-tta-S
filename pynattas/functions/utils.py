@@ -8,8 +8,16 @@ def parse_architecture_code(code):
     layers = []
     i = 0
     while i < len(code) - 2:  # Exclude the last two characters for pooling and head
-        if code[i] in ['c', 'm', 'p']:
-            layer_type = 'Conv2D' if code[i] == 'c' else 'MBConv' if code[i] == 'm' else 'CSPBlock'
+        if code[i] in ['c', 'm', 'p', 'd']:
+            if code[i] == 'd':
+                layer_type = 'DenseNetBlock'
+            elif code[i] == 'm':
+                layer_type = 'MBConv'
+            elif code[i] == 'p':
+                layer_type = 'CSPBlock'
+            else:
+                layer_type = 'Conv2D'
+
             num_layers = int(code[i+1])
             activation_type = 'ReLU' if code[i+2] == 'r' else 'GELU'
 
@@ -46,6 +54,7 @@ def generate_layers_search_space(parsed_layers):
             'Conv2D': ['kernel_size', 'out_channels_coefficient'],
             'MBConv': ['expansion_factor'],
             'CSPBlock': ['num_blocks'],
+            'DenseNetBlock': ['out_channels_coefficient']
             #'AvgPool': [],
             #'MaxPool': [],
             # Add other layers as needed
@@ -96,7 +105,11 @@ def show_particle_swarm(swarm, search_space, global_best_position, global_best_f
     with open(os.path.join(logs_directory, f'iteration_{t}.txt'), 'w') as file:
         file.write("Particle Information:\n")
         for i, particle in enumerate(swarm):
-            file.write(f"Particle {i} - Position: {particle.current_position}, Velocity: {particle.current_velocity}, Fitness: {particle.current_fitness}\n")
+            file.write(
+                f"Particle {i} - Position: {particle.current_position}, "
+                f"Velocity: {particle.current_velocity}, "
+                f"Fitness: {particle.current_fitness}\n"
+            )
         file.write(f"Global Best - Position: {global_best_position}, Fitness: {global_best_fitness}\n")
 
 

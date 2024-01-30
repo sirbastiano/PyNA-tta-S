@@ -3,7 +3,8 @@ import random
 import matplotlib.pyplot as plt
 import os
 import numpy as np
-from .. import classes, functions
+from .. import classes
+from ..functions import *
 
 
 def single_point_crossover(parents):
@@ -56,11 +57,11 @@ def mutation(children, mutation_probability):
                 gene = child.chromosome[gene_i]
                 # Mutate based on the type of gene
                 if len(gene) == 3:  # Triplet gene (convolutional layers)
-                    child.chromosome[gene_i] = functions.architecture_builder.random_triplet_gene()
+                    child.chromosome[gene_i] = architecture_builder.random_triplet_gene()
                 elif len(gene) == 1 and gene_i == len(child.chromosome) - 2:  # Pooling layer gene
-                    child.chromosome[gene_i] = functions.architecture_builder.random_pooling_gene()
+                    child.chromosome[gene_i] = architecture_builder.random_pooling_gene()
                 elif len(gene) == 1 and gene_i == len(child.chromosome) - 1:  # Head gene
-                    child.chromosome[gene_i] = functions.architecture_builder.random_head_gene()
+                    child.chromosome[gene_i] = architecture_builder.random_head_gene()
                 else:
                     print("Something went wrong with mutation.")
                     exit()
@@ -149,10 +150,10 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
 
     print("Starting chromosome pool:")
     for i in population:
-        parsed_layers = functions.utils.parse_architecture_code(i.architecture)
+        parsed_layers = utils.parse_architecture_code(i.architecture)
         print(f"Individual {i}")
         print(f"chromosome: {i.chromosome}")
-        i.fitness = functions.fitness.compute_fitness_value(position=[], keys=[], architecture=parsed_layers)
+        i.fitness = fitness.compute_fitness_value(position=[], keys=[], architecture=parsed_layers)
         print(f"chromosome: {i.chromosome}, fitness: {i.fitness}\n")
 
     # Starting population update
@@ -160,10 +161,10 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
     historical_best_fitness = population[0].fitness
     fittest_individual = population[0].architecture
     fittest_genes = population[0].chromosome
-    mean_fitness_vector[0], median_fitness_vector[0] = functions.utils.calculate_statistics(population, attribute='fitness')
+    mean_fitness_vector[0], median_fitness_vector[0] = utils.calculate_statistics(population, attribute='fitness')
     best_fitness_vector[0] = historical_best_fitness
 
-    functions.utils.show_population(
+    utils.show_population(
         population=population,
         generation=0,
         logs_dir=logs_directory,
@@ -202,9 +203,9 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
         population = remove_duplicates(population=population, max_layers=max_layers)
 
         for i in population:
-            parsed_layers = functions.utils.parse_architecture_code(i.architecture)
+            parsed_layers = utils.parse_architecture_code(i.architecture)
             print("chromosome:", i.chromosome)
-            i.fitness = functions.fitness.compute_fitness_value(position=[], keys=[], architecture=parsed_layers)
+            i.fitness = fitness.compute_fitness_value(position=[], keys=[], architecture=parsed_layers)
             print("chromosome:", i.chromosome)
             print("fitness:", i.fitness, "\n")
 
@@ -221,7 +222,7 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
         print(f"The best historical fitness is {historical_best_fitness},"
               f"with the most fit individual having the following genes: {fittest_genes}.")
 
-        functions.utils.show_population(
+        utils.show_population(
             population=population,
             generation=t,
             logs_dir=logs_directory,
@@ -230,7 +231,7 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
         )
 
         # Update analytics
-        mean_fitness_vector[t], median_fitness_vector[t] = functions.utils.calculate_statistics(population, attribute='fitness')
+        mean_fitness_vector[t], median_fitness_vector[t] = utils.calculate_statistics(population, attribute='fitness')
         best_fitness_vector[t] = historical_best_fitness
 
         t += 1

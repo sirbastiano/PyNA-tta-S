@@ -3,7 +3,8 @@ import random
 import os
 import matplotlib.pyplot as plt
 import numpy as np
-from .. import classes, functions
+from .. import classes
+from ..functions import *
 
 
 def gwo_optimizer(architecture, search_space, max_iter, n_wolves, logs_directory):
@@ -22,7 +23,7 @@ def gwo_optimizer(architecture, search_space, max_iter, n_wolves, logs_directory
     for i in range(n_wolves):
         temp_wolf = classes.Wolf(search_space_values, seed=7 * i)
         temp_full_position = temp_wolf.position
-        temp_wolf.fitness = functions.fitness.compute_fitness_value(
+        temp_wolf.fitness = fitness.compute_fitness_value(
             architecture=architecture,
             position=temp_wolf.position,
             keys=search_space_keys,
@@ -36,8 +37,8 @@ def gwo_optimizer(architecture, search_space, max_iter, n_wolves, logs_directory
     alpha_wolf, beta_wolf, delta_wolf = population[0], population[1], population[2]
 
     # Logging
-    functions.utils.show_wolf_population(population, search_space, iteration=0, logs_dir=logs_directory)
-    mean_fitness_vector[0], median_fitness_vector[0] = functions.utils.calculate_statistics(population, attribute='fitness')
+    utils.show_wolf_population(population, search_space, iteration=0, logs_dir=logs_directory)
+    mean_fitness_vector[0], median_fitness_vector[0] = utils.calculate_statistics(population, attribute='fitness')
     best_fitness_vector[0] = alpha_wolf.fitness
 
     # Iterations
@@ -86,7 +87,7 @@ def gwo_optimizer(architecture, search_space, max_iter, n_wolves, logs_directory
                     print("This wolf tried to escape and got CLAMPED!")
 
             # fitness calculation of new solution
-            fnew = functions.fitness.compute_fitness_value(
+            fnew = fitness.compute_fitness_value(
                 architecture=architecture,
                 position=Xnew,
                 keys=search_space_keys,
@@ -105,8 +106,8 @@ def gwo_optimizer(architecture, search_space, max_iter, n_wolves, logs_directory
         alpha_wolf, beta_wolf, delta_wolf = population[0], population[1], population[2]
 
         # Logging
-        functions.utils.show_wolf_population(population, search_space, iteration=t, logs_dir=logs_directory)
-        mean_fitness_vector[t], median_fitness_vector[t] = functions.utils.calculate_statistics(population, attribute='fitness')
+        utils.show_wolf_population(population, search_space, iteration=t, logs_dir=logs_directory)
+        mean_fitness_vector[t], median_fitness_vector[t] = utils.calculate_statistics(population, attribute='fitness')
         best_fitness_vector[t] = alpha_wolf.fitness
 
         # Update iteration counter

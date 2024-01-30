@@ -3,7 +3,8 @@ import random
 import matplotlib.pyplot as plt
 import os
 import numpy as np
-from .. import classes, functions
+from .. import classes
+from ..functions import *
 
 
 def update_global_best(swarm, old_global_best_position, old_global_best_fitness):
@@ -32,7 +33,7 @@ def pso_optimizer(architecture, search_space, max_iter, n_particles, c1, c2, w, 
     swarm = []
     for i in range(n_particles):
         temp_particle = classes.Particle(search_space_values, seed=2 * i)
-        temp_particle.current_fitness = functions.fitness.compute_fitness_value(
+        temp_particle.current_fitness = fitness.compute_fitness_value(
             position=temp_particle.current_position,
             keys=search_space_keys,
             architecture=architecture,
@@ -53,9 +54,9 @@ def pso_optimizer(architecture, search_space, max_iter, n_particles, c1, c2, w, 
     # Global best update
     global_best_position, global_best_fitness = update_global_best(swarm, global_best_position, global_best_fitness)
     best_fitness_vector[0] = global_best_fitness
-    mean_fitness_vector[0], median_fitness_vector[0] = functions.utils.calculate_statistics(swarm, attribute='current_fitness')
+    mean_fitness_vector[0], median_fitness_vector[0] = utils.calculate_statistics(swarm, attribute='current_fitness')
 
-    functions.utils.show_particle_swarm(
+    utils.show_particle_swarm(
         swarm=swarm,
         search_space=search_space_values,
         global_best_position=global_best_position,
@@ -95,7 +96,7 @@ def pso_optimizer(architecture, search_space, max_iter, n_particles, c1, c2, w, 
                     particle.current_position[j] = clamped_position[j]
                     print(f"A particle got clamped in dimension {j}.")
 
-            particle.current_fitness = functions.fitness.compute_fitness_value(
+            particle.current_fitness = fitness.compute_fitness_value(
                 position=particle.current_position,
                 keys=search_space_keys,
                 architecture=architecture,
@@ -109,7 +110,7 @@ def pso_optimizer(architecture, search_space, max_iter, n_particles, c1, c2, w, 
         best_fitness_vector[t] = global_best_fitness
         print(f"Best fitness: {global_best_fitness}, at position: {global_best_position}")
 
-        functions.utils.show_particle_swarm(
+        utils.show_particle_swarm(
             swarm=swarm,
             search_space=search_space_values,
             global_best_position=global_best_position,
@@ -118,7 +119,7 @@ def pso_optimizer(architecture, search_space, max_iter, n_particles, c1, c2, w, 
             iteration=t
         )
 
-        mean_fitness_vector[t], median_fitness_vector[t] = functions.utils.calculate_statistics(swarm, attribute='current_fitness')
+        mean_fitness_vector[t], median_fitness_vector[t] = utils.calculate_statistics(swarm, attribute='current_fitness')
         t += 1
 
     plt.figure(figsize=(12, 8))

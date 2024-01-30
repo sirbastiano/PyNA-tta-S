@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from .activation import GELU
+from .activations import GELU
 
 
 class Conv2D(nn.Sequential):
@@ -44,7 +44,7 @@ class MBConv(nn.Module):
 # TODO: Make a parent CSPBlock for various CSP-ized blocks. Change the name of the classes to more appropriate ones.
 class CSPBlock(nn.Module):
     def __init__(self, in_channels, num_blocks=1, expansion_factor=4, activation=GELU):
-        super(CSPBlock, self).__init__()
+        super().__init__()
 
         # Use the same value for hidden_channels to avoid the issue with odd in_channels
         self.main_channels = in_channels // 2
@@ -94,3 +94,23 @@ class CSPBlock(nn.Module):
         # Apply final transition
         out = self.final_transition(combined)
         return out
+
+
+class DenseNetBlock(nn.Module):
+    """
+    Basic DenseNet block composed by one 3x3 convs with residual connection.
+    The residual connection is perfomed by concatenate the input and the output.
+    """
+
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, activation=GELU):
+        super().__init__()
+        self.block = nn.Sequential(
+            nn.BatchNorm2d(in_channels),
+            activation(),
+            nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
+            )
+
+    def forward(self, x):
+        res = x
+        x = self.block(x)
+        return torch.cat([res, x], dim=1)

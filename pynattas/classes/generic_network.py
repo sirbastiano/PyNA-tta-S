@@ -1,5 +1,5 @@
 import torch.nn as nn
-from .. import modules
+from ..blocks import *
 import configparser
 
 
@@ -81,7 +81,7 @@ class GenericNetwork(nn.Module):
 
                 out_channels = int(current_channels * out_channels_coeff)
 
-                layer = modules.convolution.Conv2D(
+                layer = convolutions.Conv2D(
                     in_channels=current_channels,
                     out_channels=out_channels,
                     kernel_size=kernel_size,
@@ -101,7 +101,7 @@ class GenericNetwork(nn.Module):
                 ))
 
                 # Creating MBConv layer
-                layer = modules.convolution.MBConv(
+                layer = convolutions.MBConv(
                     in_channels=current_channels,
                     out_channels=current_channels,
                     expansion_factor=expansion_factor,
@@ -128,7 +128,7 @@ class GenericNetwork(nn.Module):
                 ))
                 out_channels = int(current_channels * out_channels_coeff)
 
-                layer = modules.convolution.CSPBlock(
+                layer = convolutions.CSPBlock(
                     in_channels=current_channels,
                     #out_channels=current_channels,
                     expansion_factor=expansion_factor,
@@ -136,6 +136,23 @@ class GenericNetwork(nn.Module):
                     activation=self.get_activation_fn(layer_info['activation']),
                 )
                 current_channels = out_channels
+
+            elif layer_type == 'DenseNetBlock':
+                out_channels_coeff = float(model_parameters.get(
+                    f'Conv2D_{index}_out_channels_coefficient',
+                    config['DenseNetBlock']['default_out_channels_coefficient']
+                ))
+
+                out_channels = int(current_channels * out_channels_coeff)
+
+                layer = convolutions.DenseNetBlock(
+                    in_channels=current_channels,
+                    out_channels=out_channels,
+                    activation=self.get_activation_fn(layer_info['activation']),
+                )
+                current_channels = current_channels + out_channels
+                current_height = current_height
+                current_width = current_width
 
             elif layer_type == 'AvgPool':
                 kernel_size = int(model_parameters.get(
@@ -147,7 +164,7 @@ class GenericNetwork(nn.Module):
                     config['AvgPool']['default_stride']
                 ))
 
-                layer = modules.pooling.AvgPool(kernel_size=kernel_size, stride=stride)
+                layer = pooling.AvgPool(kernel_size=kernel_size, stride=stride)
 
                 current_channels = current_channels
                 current_height = ((current_height - kernel_size) // stride) + 1
@@ -163,7 +180,7 @@ class GenericNetwork(nn.Module):
                     config['MaxPool']['default_stride']
                 ))
 
-                layer = modules.pooling.MaxPool(kernel_size=kernel_size, stride=stride)
+                layer = pooling.MaxPool(kernel_size=kernel_size, stride=stride)
 
                 current_channels = current_channels
                 current_height = ((current_height - kernel_size) // stride) + 1
@@ -173,7 +190,7 @@ class GenericNetwork(nn.Module):
                 # Calculate the input size for ClassificationHead
                 num_classes = int(config['ClassificationHead']['num_classes'])
                 input_size_for_head = current_height * current_width * current_channels
-                layer = modules.heads.ClassificationHead(input_size=input_size_for_head, num_classes=num_classes)
+                layer = heads.ClassificationHead(input_size=input_size_for_head, num_classes=num_classes)
 
             else:
                 raise ValueError(f"Unknown layer type: {layer_type}")
@@ -181,18 +198,18 @@ class GenericNetwork(nn.Module):
             self.layers.append(layer)
 
     @staticmethod
-    def get_activation_fn(activation=modules.activation.GELU):
+    def get_activation_fn(activation=activations.GELU):
         if activation == 'ReLU':
-            return modules.activation.ReLU
+            return activations.ReLU
         elif activation == 'GELU':
-            return modules.activation.GELU
+            return activations.GELU
         # Add more activation functions as needed
         else:
             raise ValueError(f"Unknown activation function: {activation}")
 
     def forward(self, x):
         for layer in self.layers:
-            if isinstance(layer, modules.heads.ClassificationHead):
+            if isinstance(layer, heads.ClassificationHead):
                 # Flatten the output before feeding it into the ClassificationHead
                 x = x.view(x.size(0), -1)
             x = layer(x)

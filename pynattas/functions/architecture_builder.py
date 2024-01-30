@@ -25,7 +25,7 @@ def generate_random_architecture_code(max_layers):
     # random.seed(some_seed)
 
     # Define possible choices for each part of the triplet/quadruplet
-    conv_layers = ['c', 'm', 'p']  # Conv2D, MBConv, CSPBlock
+    conv_layers = ['c', 'm', 'p', 'd']  # Conv2D, MBConv, CSPBlock, DenseNetBlock
     activation_functions = ['r', 'g']  # ReLU or GELU
     pooling_layers = ['a', 'M']  # AvgPool or MaxPool
     heads = ['C']  # ClassificationHead
@@ -56,7 +56,7 @@ def random_triplet_gene():
     """
 
     # Define the options for each part of the triplet/quadruplet
-    layer_types = ['c', 'm', 'p']  # Conv2D, MBConv, CSPBlock
+    layer_types = ['c', 'm', 'p', 'd']  # Conv2D, MBConv, CSPBlock, DenseNetBlock
     activation_functions = ['r', 'g']  # ReLU or GELU
 
     # Randomly select one option from each part

@@ -40,7 +40,7 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Environment :: GPU :: NVIDIA CUDA :: 11.0",
     ],
-    packages=["pynattas", "pynattas.classes", "pynattas.functions", "pynattas.modules", "pynattas.optimizers"],
+    packages=["pynattas", "pynattas.classes", "pynattas.functions", "pynattas.blocks", "pynattas.optimizers"],
     python_requires=">=3.8, <4",
     project_urls={"Source": "https://github.com/sirbastiano/PyNA-tta-S"},
 )

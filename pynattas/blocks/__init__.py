@@ -5,7 +5,7 @@ from torch import nn, Tensor
 from torch.nn import functional as F
 from torchvision.ops import StochasticDepth
 
-__all__ = ["activations", "convolutions", "pooling", "residual"]
+__all__ = ["activations", "convolutions", "pooling", "utils", "heads"]
 
 
 class Lambda(nn.Module):
@@ -26,4 +26,3 @@ class Lambda(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         return self.lambd(x)
-

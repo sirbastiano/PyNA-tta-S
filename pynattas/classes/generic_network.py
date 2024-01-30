@@ -1,4 +1,5 @@
 import torch.nn as nn
+<<<<<<< HEAD
 import modules.conv2d
 import modules.mbconv
 import modules.relu
@@ -6,6 +7,9 @@ import modules.gelu
 import modules.classification_head
 import pynattas.modules.pooling
 import modules.maxpool
+=======
+from ..blocks import *
+>>>>>>> origin/test_branch_am
 import configparser
 
 
@@ -53,8 +57,9 @@ class GenericNetwork(nn.Module):
         Methods:
         forward(x): Defines the forward pass of the model.
         get_activation_fn(activation): Returns the activation function based on the specified string.
-        """
-    def __init__(self, parsed_layers, model_parameters, input_channels=4, input_height=256, input_width=256, num_classes=2):
+    """
+
+    def __init__(self, parsed_layers, model_parameters, input_channels=3, input_height=256, input_width=256, num_classes=2):
         super(GenericNetwork, self).__init__()
         self.layers = nn.ModuleList()
 
@@ -86,7 +91,7 @@ class GenericNetwork(nn.Module):
 
                 out_channels = int(current_channels * out_channels_coeff)
 
-                layer = modules.conv2d.Conv2D(
+                layer = convolutions.Conv2D(
                     in_channels=current_channels,
                     out_channels=out_channels,
                     kernel_size=kernel_size,
@@ -106,7 +111,7 @@ class GenericNetwork(nn.Module):
                 ))
 
                 # Creating MBConv layer
-                layer = modules.mbconv.MBConv(
+                layer = convolutions.MBConv(
                     in_channels=current_channels,
                     out_channels=current_channels,
                     expansion_factor=expansion_factor,
@@ -114,6 +119,48 @@ class GenericNetwork(nn.Module):
                 )
 
                 current_channels = current_channels
+                current_height = current_height
+                current_width = current_width
+
+            elif layer_type == 'CSPBlock':
+                # Extracting CSPBlock parameters
+                out_channels_coeff = float(model_parameters.get(
+                    f'CSPBlock_{index}_out_channels_coefficient',
+                    config['CSPBlock']['default_out_channels_coefficient']
+                ))
+                expansion_factor = int(model_parameters.get(
+                    f'CSPBlock_{index}_expansion_factor',
+                    config['CSPBlock']['default_expansion_factor']
+                ))
+                num_blocks = int(model_parameters.get(
+                    f'CSPBlock_{index}_num_blocks',
+                    config['CSPBlock']['default_num_blocks']
+                ))
+                out_channels = int(current_channels * out_channels_coeff)
+
+                layer = convolutions.CSPBlock(
+                    in_channels=current_channels,
+                    #out_channels=current_channels,
+                    expansion_factor=expansion_factor,
+                    num_blocks=num_blocks,
+                    activation=self.get_activation_fn(layer_info['activation']),
+                )
+                current_channels = out_channels
+
+            elif layer_type == 'DenseNetBlock':
+                out_channels_coeff = float(model_parameters.get(
+                    f'Conv2D_{index}_out_channels_coefficient',
+                    config['DenseNetBlock']['default_out_channels_coefficient']
+                ))
+
+                out_channels = int(current_channels * out_channels_coeff)
+
+                layer = convolutions.DenseNetBlock(
+                    in_channels=current_channels,
+                    out_channels=out_channels,
+                    activation=self.get_activation_fn(layer_info['activation']),
+                )
+                current_channels = current_channels + out_channels
                 current_height = current_height
                 current_width = current_width
 
@@ -127,7 +174,11 @@ class GenericNetwork(nn.Module):
                     config['AvgPool']['default_stride']
                 ))
 
+<<<<<<< HEAD
                 layer = modules.pooling.AvgPool(kernel_size=kernel_size, stride=stride)
+=======
+                layer = pooling.AvgPool(kernel_size=kernel_size, stride=stride)
+>>>>>>> origin/test_branch_am
 
                 current_channels = current_channels
                 current_height = ((current_height - kernel_size) // stride) + 1
@@ -143,7 +194,7 @@ class GenericNetwork(nn.Module):
                     config['MaxPool']['default_stride']
                 ))
 
-                layer = modules.maxpool.MaxPool(kernel_size=kernel_size, stride=stride)
+                layer = pooling.MaxPool(kernel_size=kernel_size, stride=stride)
 
                 current_channels = current_channels
                 current_height = ((current_height - kernel_size) // stride) + 1
@@ -153,23 +204,26 @@ class GenericNetwork(nn.Module):
                 # Calculate the input size for ClassificationHead
                 num_classes = int(config['ClassificationHead']['num_classes'])
                 input_size_for_head = current_height * current_width * current_channels
-                layer = modules.classification_head.ClassificationHead(input_size=input_size_for_head, num_classes=num_classes)
+                layer = heads.ClassificationHead(input_size=input_size_for_head, num_classes=num_classes)
+
+            else:
+                raise ValueError(f"Unknown layer type: {layer_type}")
 
             self.layers.append(layer)
 
     @staticmethod
-    def get_activation_fn(activation):
+    def get_activation_fn(activation=activations.GELU):
         if activation == 'ReLU':
-            return modules.relu.ReLU
+            return activations.ReLU
         elif activation == 'GELU':
-            return modules.gelu.GELU
+            return activations.GELU
         # Add more activation functions as needed
         else:
             raise ValueError(f"Unknown activation function: {activation}")
 
     def forward(self, x):
         for layer in self.layers:
-            if isinstance(layer, modules.classification_head.ClassificationHead):
+            if isinstance(layer, heads.ClassificationHead):
                 # Flatten the output before feeding it into the ClassificationHead
                 x = x.view(x.size(0), -1)
             x = layer(x)

@@ -1,5 +1,5 @@
 import random
-import functions.architecture_builder as builder
+from ..functions import architecture_builder as builder
 
 
 class Individual:

@@ -5,6 +5,7 @@ import os
 import numpy as np
 from .. import classes
 from ..functions import *
+import concurrent.futures
 
 
 def single_point_crossover(parents):
@@ -149,12 +150,21 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
     population = remove_duplicates(population=population, max_layers=max_layers)
 
     print("Starting chromosome pool:")
+    # Parallel Fitness Evaluation with Process Pool
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        futures = [executor.submit(
+            fitness.compute_fitness_value,
+            position=[],
+            keys=[],
+            architecture=utils.parse_architecture_code(i.architecture)
+        ) for i in population]
+        for i, future in enumerate(concurrent.futures.as_completed(futures)):
+            population[i].fitness = future.result()
+    
     for i in population:
-        parsed_layers = utils.parse_architecture_code(i.architecture)
         print(f"Individual {i}")
         print(f"chromosome: {i.chromosome}")
-        i.fitness = fitness.compute_fitness_value(position=[], keys=[], architecture=parsed_layers)
-        print(f"chromosome: {i.chromosome}, fitness: {i.fitness}\n")
+        print(f"fitness: {i.fitness}\n")
 
     # Starting population update
     population = sorted(population, key=lambda temp: temp.fitness, reverse=True)
@@ -202,11 +212,19 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
             i.architecture = i.chromosome2architecture(i.chromosome)
         population = remove_duplicates(population=population, max_layers=max_layers)
 
+        # Parallel Fitness Evaluation in Each Generation with Process Pool
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            futures = [executor.submit(
+                fitness.compute_fitness_value,
+                position=[],
+                keys=[],
+                architecture=utils.parse_architecture_code(i.architecture)
+            ) for i in population]
+            for i, future in enumerate(concurrent.futures.as_completed(futures)):
+                population[i].fitness = future.result()
+
         for i in population:
-            parsed_layers = utils.parse_architecture_code(i.architecture)
-            print("chromosome:", i.chromosome)
-            i.fitness = fitness.compute_fitness_value(position=[], keys=[], architecture=parsed_layers)
-            print("chromosome:", i.chromosome)
+            print("position", i.chromosome)
             print("fitness:", i.fitness, "\n")
 
         # Update historical best

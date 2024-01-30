@@ -2,15 +2,6 @@ import torch
 import torchvision
 from torchvision import transforms
 import pytorch_lightning as pl
-<<<<<<< HEAD
-import configparser
-from classes.generic_lightning_module import GenericLightningNetwork
-from wake_classifier.dataset import xAIWakesDataModule
-from L0_thraws_classifier.dataset_weighted import SentinelDataset, SentinelDataModule
-
-
-def compute_fitness_value_nas(position, keys, architecture):
-=======
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import EarlyStopping
 import configparser
@@ -23,7 +14,6 @@ from datasets.wake_classifier.dataset import xAIWakesDataModule
 
 
 def compute_fitness_value(position, keys, architecture, is_final=False):
->>>>>>> origin/test_branch_am
     """
     Computes the fitness value for a given network architecture and hyperparameters in NAS.
 
@@ -100,35 +90,6 @@ def compute_fitness_value(position, keys, architecture, is_final=False):
     """
 
     # MODEL
-<<<<<<< HEAD
-    model = GenericLightningNetwork(
-        parsed_layers=architecture,
-        input_channels=in_channels,
-        #input_height=256,
-        #input_width=256,
-        num_classes=num_classes,
-        learning_rate=lr,
-        model_parameters=model_parameters,
-    )
-    trainer = pl.Trainer(
-        accelerator=accelerator,
-        min_epochs=1,
-        max_epochs=11,
-        fast_dev_run=False,
-        check_val_every_n_epoch=50,
-    )
-    trainer.fit(model, dm)
-    trainer.validate(model, dm)
-    results = trainer.test(model, dm)
-    #acc = results[0].get('test_accuracy')
-    #f1 = results[0].get('test_f1_score')
-    # fitness = (4 * acc + 1 * f1) / 5
-    # fitness = acc
-    mcc = results[0].get('test_mcc')
-    fitness = mcc
-
-    return fitness
-=======
     if is_final == False:
         model = classes.GenericLightningNetwork(
             parsed_layers=architecture,
@@ -225,4 +186,3 @@ def compute_fitness_value(position, keys, architecture, is_final=False):
             txt_file.write(f"\nMCC: {mcc}")
             txt_file.write(f"\nFitness: {fitness}")
         print(f"\nFinal run text file saved: {txt_filepath}")
->>>>>>> origin/test_branch_am

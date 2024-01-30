@@ -1,15 +1,5 @@
 import torch.nn as nn
-<<<<<<< HEAD
-import modules.conv2d
-import modules.mbconv
-import modules.relu
-import modules.gelu
-import modules.classification_head
-import pynattas.modules.pooling
-import modules.maxpool
-=======
 from ..blocks import *
->>>>>>> origin/test_branch_am
 import configparser
 
 
@@ -174,11 +164,7 @@ class GenericNetwork(nn.Module):
                     config['AvgPool']['default_stride']
                 ))
 
-<<<<<<< HEAD
-                layer = modules.pooling.AvgPool(kernel_size=kernel_size, stride=stride)
-=======
                 layer = pooling.AvgPool(kernel_size=kernel_size, stride=stride)
->>>>>>> origin/test_branch_am
 
                 current_channels = current_channels
                 current_height = ((current_height - kernel_size) // stride) + 1

@@ -2,8 +2,6 @@ import torch.nn as nn
 
 
 class AvgPool(nn.Sequential):
-<<<<<<< HEAD
-=======
     """
     Implements an average pooling layer.
     This layer applies a 2D average pooling over an input signal (usually an image) represented as a batch of
@@ -17,17 +15,12 @@ class AvgPool(nn.Sequential):
     Example Usage:
         avg_pool_layer = AvgPool(kernel_size=2, stride=2)
     """
->>>>>>> origin/test_branch_am
     def __init__(self, kernel_size=2, stride=2):
         super(AvgPool, self).__init__(
             nn.AvgPool2d(kernel_size, stride)
         )
 
 
-<<<<<<< HEAD
-
-class MaxPool(nn.Sequential):
-=======
 class MaxPool(nn.Sequential):
     """
     Implements a max pooling layer.
@@ -43,7 +36,6 @@ class MaxPool(nn.Sequential):
     Example Usage:
         max_pool_layer = MaxPool(kernel_size=2, stride=2, padding=0)
     """
->>>>>>> origin/test_branch_am
     def __init__(self, kernel_size=2, stride=None, padding=0):
         if stride is None:
             stride = kernel_size

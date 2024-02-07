@@ -88,7 +88,6 @@ def compute_fitness_value(position, keys, architecture, is_final=False):
     )
     in_channels = 4
     """
-
     print(f"\n\n***\n{architecture}\n{model_parameters}\n***\n\n")
 
     # MODEL
@@ -121,7 +120,8 @@ def compute_fitness_value(position, keys, architecture, is_final=False):
         f1 = results[0].get('test_f1_score')
         mcc = results[0].get('test_mcc')
         #fitness = 0.5*(mcc+f1)*(1/(training_time/60))
-        fitness = (mcc+acc+f1)/3
+        #fitness = (mcc+acc+f1)/3
+        fitness = mcc
 
         print(f"Training time: {training_time}")
         print(f"Accuracy: {acc}")
@@ -168,7 +168,8 @@ def compute_fitness_value(position, keys, architecture, is_final=False):
         acc = results[0].get('test_accuracy')
         f1 = results[0].get('test_f1_score')
         mcc = results[0].get('test_mcc')
-        fitness = (mcc+acc+f1)/3
+        #fitness = (mcc+acc+f1)/3
+        fitness = mcc
 
         print("FINAL RUN COMPLETED:")
         print(f"Training time: {training_time}")

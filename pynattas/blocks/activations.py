@@ -38,3 +38,11 @@ class ReLU(nn.Module):
 
 
 ReLUInPlace = partial(nn.ReLU, inplace=True)
+
+
+class Sigmoid(nn.Module):
+    """
+        Sigmoid activation function.
+    """
+    def forward(self, x):
+        return nn.Sigmoid()(x)

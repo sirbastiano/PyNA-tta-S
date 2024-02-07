@@ -60,7 +60,7 @@ def compute_fitness_value(position, keys, architecture, is_final=False):
     csv_file = config['Dataset']['csv_path']
     root_dir = config['Dataset']['data_path']
     num_classes = config.getint(section='Dataset', option='num_classes')
-
+    
     composed_transform = transforms.Compose([
         transforms.Resize((256, 256)),
         transforms.ToTensor(),
@@ -88,6 +88,8 @@ def compute_fitness_value(position, keys, architecture, is_final=False):
     )
     in_channels = 4
     """
+
+    print(f"\n\n***\n{architecture}\n{model_parameters}\n***\n\n")
 
     # MODEL
     if is_final == False:
@@ -119,7 +121,7 @@ def compute_fitness_value(position, keys, architecture, is_final=False):
         f1 = results[0].get('test_f1_score')
         mcc = results[0].get('test_mcc')
         #fitness = 0.5*(mcc+f1)*(1/(training_time/60))
-        fitness = mcc
+        fitness = (mcc+acc+f1)/3
 
         print(f"Training time: {training_time}")
         print(f"Accuracy: {acc}")
@@ -166,7 +168,7 @@ def compute_fitness_value(position, keys, architecture, is_final=False):
         acc = results[0].get('test_accuracy')
         f1 = results[0].get('test_f1_score')
         mcc = results[0].get('test_mcc')
-        fitness = 0.5 * (mcc + f1) * (1 / (training_time / 60))
+        fitness = (mcc+acc+f1)/3
 
         print("FINAL RUN COMPLETED:")
         print(f"Training time: {training_time}")

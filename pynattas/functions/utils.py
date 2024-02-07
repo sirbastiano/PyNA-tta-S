@@ -8,15 +8,27 @@ def parse_architecture_code(code):
     layers = []
     i = 0
     while i < len(code) - 2:  # Exclude the last two characters for pooling and head
-        if code[i] in ['c', 'm', 'p', 'd']:
-            if code[i] == 'd':
+        if code[i] in ['b', 'c', 'd', 'e', 'm', 'n', 'o', 'p', 'R']:
+            if code[i] == 'b':
+                layer_type = 'ConvAct'
+            elif code[i] == 'c':
+                layer_type = 'ConvBnAct'
+            elif code[i] == 'e':
+                layer_type = 'ConvSE'
+            elif code[i] == 'd':
                 layer_type = 'DenseNetBlock'
             elif code[i] == 'm':
                 layer_type = 'MBConv'
+            elif code[i] == 'n':
+                layer_type = 'MBConvNoRes' 
+            elif code[i] == 'o':
+                layer_type = 'CSPConvBlock'
             elif code[i] == 'p':
-                layer_type = 'CSPBlock'
+                layer_type = 'CSPMBConvBlock'
+            elif code[i] == 'R':
+                layer_type = 'ResNetBlock'
             else:
-                layer_type = 'Conv2D'
+                raise ValueError(f"Unknown layer type: {code[i]}")
 
             num_layers = int(code[i+1])
             activation_type = 'ReLU' if code[i+2] == 'r' else 'GELU'
@@ -51,10 +63,15 @@ def generate_layers_search_space(parsed_layers):
 
         # Define parameters for each layer type
         parameters = {
-            'Conv2D': ['kernel_size', 'out_channels_coefficient'],
+            'ConvAct': ['kernel_size', 'out_channels_coefficient', 'stride', 'padding'],
+            'ConvBnAct': ['kernel_size', 'out_channels_coefficient', 'stride', 'padding'],
+            'ConvSE': ['kernel_size', 'out_channels_coefficient', 'stride', 'padding'],
+            'DenseNetBlock': ['out_channels_coefficient'],
             'MBConv': ['expansion_factor'],
-            'CSPBlock': ['num_blocks'],
-            'DenseNetBlock': ['out_channels_coefficient']
+            'MBConvNoRes': ['expansion_factor'],
+            'CSPConvBlock': ['num_blocks'],
+            'CSPMBConvBlock': ['num_blocks', 'expansion_factor'],
+            'ResNetBlock': ['reduction_factor'],
             #'AvgPool': [],
             #'MaxPool': [],
             # Add other layers as needed

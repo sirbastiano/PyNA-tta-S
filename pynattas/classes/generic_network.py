@@ -61,27 +61,91 @@ class GenericNetwork(nn.Module):
         for index, layer_info in enumerate(parsed_layers):
             layer_type = layer_info['type']
 
-            if layer_type == 'Conv2D':
+            if layer_type == 'ConvAct':
                 kernel_size = int(model_parameters.get(
-                    f'Conv2D_{index}_kernel_size',
-                    config['Conv2D']['default_kernel_size']
+                    f'ConvAct_{index}_kernel_size',
+                    config['ConvAct']['default_kernel_size']
                 ))
                 stride = int(model_parameters.get(
-                    f'Conv2D_{index}_stride',
-                    config['Conv2D']['default_stride']
+                    f'ConvAct_{index}_stride',
+                    config['ConvAct']['default_stride']
                 ))
                 padding = int(model_parameters.get(
-                    f'Conv2D_{index}_padding',
-                    config['Conv2D']['default_padding']
+                    f'ConvAct_{index}_padding',
+                    config['ConvAct']['default_padding']
                 ))
                 out_channels_coeff = float(model_parameters.get(
-                    f'Conv2D_{index}_out_channels_coefficient',
-                    config['Conv2D']['default_out_channels_coefficient']
+                    f'ConvAct_{index}_out_channels_coefficient',
+                    config['ConvAct']['default_out_channels_coefficient']
                 ))
 
                 out_channels = int(current_channels * out_channels_coeff)
 
-                layer = convolutions.Conv2D(
+                layer = convolutions.ConvAct(
+                    in_channels=current_channels,
+                    out_channels=out_channels,
+                    kernel_size=kernel_size,
+                    stride=stride,
+                    padding=padding,
+                    activation=self.get_activation_fn(layer_info['activation']),
+                )
+                current_channels = out_channels
+                current_height = ((current_height - kernel_size + 2 * padding) // stride) + 1
+                current_width = ((current_width - kernel_size + 2 * padding) // stride) + 1
+
+            elif layer_type == 'ConvBnAct':
+                kernel_size = int(model_parameters.get(
+                    f'ConvBnAct_{index}_kernel_size',
+                    config['ConvBnAct']['default_kernel_size']
+                ))
+                stride = int(model_parameters.get(
+                    f'ConvBnAct_{index}_stride',
+                    config['ConvBnAct']['default_stride']
+                ))
+                padding = int(model_parameters.get(
+                    f'ConvBnAct_{index}_padding',
+                    config['ConvBnAct']['default_padding']
+                ))
+                out_channels_coeff = float(model_parameters.get(
+                    f'ConvBnAct_{index}_out_channels_coefficient',
+                    config['ConvBnAct']['default_out_channels_coefficient']
+                ))
+
+                out_channels = int(current_channels * out_channels_coeff)
+
+                layer = convolutions.ConvBnAct(
+                    in_channels=current_channels,
+                    out_channels=out_channels,
+                    kernel_size=kernel_size,
+                    stride=stride,
+                    padding=padding,
+                    activation=self.get_activation_fn(layer_info['activation']),
+                )
+                current_channels = out_channels
+                current_height = ((current_height - kernel_size + 2 * padding) // stride) + 1
+                current_width = ((current_width - kernel_size + 2 * padding) // stride) + 1
+
+            elif layer_type == 'ConvSE':
+                kernel_size = int(model_parameters.get(
+                    f'ConvSE_{index}_kernel_size',
+                    config['ConvSE']['default_kernel_size']
+                ))
+                stride = int(model_parameters.get(
+                    f'ConvSE_{index}_stride',
+                    config['ConvSE']['default_stride']
+                ))
+                padding = int(model_parameters.get(
+                    f'ConvSE_{index}_padding',
+                    config['ConvSE']['default_padding']
+                ))
+                out_channels_coeff = float(model_parameters.get(
+                    f'ConvSE_{index}_out_channels_coefficient',
+                    config['ConvSE']['default_out_channels_coefficient']
+                ))
+
+                out_channels = int(current_channels * out_channels_coeff)
+
+                layer = convolutions.ConvSE(
                     in_channels=current_channels,
                     out_channels=out_channels,
                     kernel_size=kernel_size,
@@ -99,12 +163,17 @@ class GenericNetwork(nn.Module):
                     f'MBConv_{index}_expansion_factor',
                     config['MBConv']['default_expansion_factor']
                 ))
+                dw_kernel_size = int(model_parameters.get(
+                    f'MBConv_{index}_dw_kernel_size',
+                    config['MBConv']['default_dw_kernel_size']
+                ))
 
                 # Creating MBConv layer
                 layer = convolutions.MBConv(
                     in_channels=current_channels,
                     out_channels=current_channels,
                     expansion_factor=expansion_factor,
+                    dw_kernel_size=dw_kernel_size,
                     activation=self.get_activation_fn(layer_info['activation']),
                 )
 
@@ -112,26 +181,77 @@ class GenericNetwork(nn.Module):
                 current_height = current_height
                 current_width = current_width
 
-            elif layer_type == 'CSPBlock':
+            elif layer_type == 'MBConvNoRes':
+                # Extracting MBConv parameters
+                expansion_factor = int(model_parameters.get(
+                    f'MBConvNoRes_{index}_expansion_factor',
+                    config['MBConvNoRes']['default_expansion_factor']
+                ))
+                dw_kernel_size = int(model_parameters.get(
+                    f'MBConvNoRes_{index}_dw_kernel_size',
+                    config['MBConvNoRes']['default_dw_kernel_size']
+                ))
+
+                # Creating MBConv layer
+                layer = convolutions.MBConvNoRes(
+                    in_channels=current_channels,
+                    out_channels=current_channels,
+                    dw_kernel_size=dw_kernel_size,
+                    expansion_factor=expansion_factor,
+                    activation=self.get_activation_fn(layer_info['activation']),
+                )
+
+                current_channels = current_channels
+                current_height = current_height
+                current_width = current_width
+            
+            elif layer_type == 'CSPConvBlock':
                 # Extracting CSPBlock parameters
                 out_channels_coeff = float(model_parameters.get(
-                    f'CSPBlock_{index}_out_channels_coefficient',
-                    config['CSPBlock']['default_out_channels_coefficient']
-                ))
-                expansion_factor = int(model_parameters.get(
-                    f'CSPBlock_{index}_expansion_factor',
-                    config['CSPBlock']['default_expansion_factor']
+                    f'CSPConvBlock_{index}_out_channels_coefficient',
+                    config['CSPConvBlock']['default_out_channels_coefficient']
                 ))
                 num_blocks = int(model_parameters.get(
-                    f'CSPBlock_{index}_num_blocks',
-                    config['CSPBlock']['default_num_blocks']
+                    f'CSPConvBlock_{index}_num_blocks',
+                    config['CSPConvBlock']['default_num_blocks']
                 ))
                 out_channels = int(current_channels * out_channels_coeff)
 
-                layer = convolutions.CSPBlock(
+                layer = convolutions.CSPConvBlock(
+                    in_channels=current_channels,
+                    #out_channels=current_channels,
+                    num_blocks=num_blocks,
+                    activation=self.get_activation_fn(layer_info['activation']),
+                )
+                current_channels = out_channels
+                current_height = current_height
+                current_width = current_width
+
+            elif layer_type == 'CSPMBConvBlock':
+                # Extracting CSPBlock parameters
+                out_channels_coeff = float(model_parameters.get(
+                    f'CSPMBConvBlock_{index}_out_channels_coefficient',
+                    config['CSPMBConvBlock']['default_out_channels_coefficient']
+                ))
+                num_blocks = int(model_parameters.get(
+                    f'CSPMBConvBlock_{index}_num_blocks',
+                    config['CSPMBConvBlock']['default_num_blocks']
+                ))
+                expansion_factor = int(model_parameters.get(
+                    f'CSPMBConvBlock_{index}_expansion_factor',
+                    config['CSPMBConvBlock']['default_expansion_factor']
+                ))
+                dw_kernel_size = int(model_parameters.get(
+                    f'CSPMBConvBlock_{index}_dw_kernel_size',
+                    config['CSPMBConvBlock']['default_dw_kernel_size']
+                ))
+                out_channels = int(current_channels * out_channels_coeff)
+
+                layer = convolutions.CSPMBConvBlock(
                     in_channels=current_channels,
                     #out_channels=current_channels,
                     expansion_factor=expansion_factor,
+                    dw_kernel_size=dw_kernel_size,
                     num_blocks=num_blocks,
                     activation=self.get_activation_fn(layer_info['activation']),
                 )
@@ -139,7 +259,7 @@ class GenericNetwork(nn.Module):
 
             elif layer_type == 'DenseNetBlock':
                 out_channels_coeff = float(model_parameters.get(
-                    f'Conv2D_{index}_out_channels_coefficient',
+                    f'DenseNetBlock_{index}_out_channels_coefficient',
                     config['DenseNetBlock']['default_out_channels_coefficient']
                 ))
 
@@ -151,6 +271,27 @@ class GenericNetwork(nn.Module):
                     activation=self.get_activation_fn(layer_info['activation']),
                 )
                 current_channels = current_channels + out_channels
+                current_height = current_height
+                current_width = current_width
+
+            elif layer_type == 'ResNetBlock':
+                out_channels_coeff = float(model_parameters.get(
+                    f'ResNetBlock_{index}_out_channels_coefficient',
+                    config['ResNetBlock']['default_out_channels_coefficient']
+                ))
+                reduction_factor = int(model_parameters.get(
+                    f'ResNetBlock_{index}_reduction_factor',
+                    config['ResNetBlock']['default_reduction_factor']
+                ))
+
+                out_channels = int(current_channels * out_channels_coeff)
+
+                layer = convolutions.ResNetBlock(
+                    in_channels=current_channels,
+                    out_channels=current_channels,
+                    activation=self.get_activation_fn(layer_info['activation']),
+                )
+                current_channels = current_channels
                 current_height = current_height
                 current_width = current_width
 

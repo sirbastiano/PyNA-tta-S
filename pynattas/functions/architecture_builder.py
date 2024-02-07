@@ -25,8 +25,8 @@ def generate_random_architecture_code(max_layers):
     # random.seed(some_seed)
 
     # Define possible choices for each part of the triplet/quadruplet
-    conv_layers = ['c', 'm', 'p', 'd']  # Conv2D, MBConv, CSPBlock, DenseNetBlock
-    activation_functions = ['r', 'g']  # ReLU or GELU
+    conv_layers = ['b', 'c', 'd', 'e', 'm', 'n', 'o', 'p', 'R']  # Conv2D, MBConv, etc...
+    activation_functions = ['r', 'g']  # ReLU, GELU, etc...
     pooling_layers = ['a', 'M']  # AvgPool or MaxPool
     heads = ['C']  # ClassificationHead
 
@@ -48,6 +48,7 @@ def generate_random_architecture_code(max_layers):
 
     return architecture_code
 
+
 def random_triplet_gene():
     """
     Generates a random gene for convolutional or CSP layers.
@@ -56,8 +57,8 @@ def random_triplet_gene():
     """
 
     # Define the options for each part of the triplet/quadruplet
-    layer_types = ['c', 'm', 'p', 'd']  # Conv2D, MBConv, CSPBlock, DenseNetBlock
-    activation_functions = ['r', 'g']  # ReLU or GELU
+    layer_types = ['b', 'c', 'd', 'e', 'm', 'n', 'o', 'p', 'R']  # Conv2D, MBConv, etc...
+    activation_functions = ['r', 'g']  # ReLU, GELU, etc...
 
     # Randomly select one option from each part
     layer_type = random.choice(layer_types)
@@ -67,6 +68,7 @@ def random_triplet_gene():
     gene = layer_type + '1' + activation_function
 
     return gene
+
 
 def random_pooling_gene():
     """
@@ -79,6 +81,7 @@ def random_pooling_gene():
     # Randomly select one option
     pooling_gene = random.choice(pooling_types)
     return pooling_gene
+
 
 def random_head_gene():
     """

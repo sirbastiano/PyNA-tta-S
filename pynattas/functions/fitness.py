@@ -4,6 +4,7 @@ from torchvision import transforms
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import EarlyStopping
+from lightning.pytorch.tuner import Tuner
 import configparser
 import os
 import time
@@ -13,11 +14,11 @@ from datasets.L0_thraws_classifier.dataset_weighted import SentinelDataset, Sent
 from datasets.wake_classifier.dataset import xAIWakesDataModule
 
 
-def compute_fitness_value(position, keys, architecture, is_final=False):
+def compute_fitness_value(parsed_layers, log_learning_rate=None, batch_size=None, is_final=False):
     """
-    Computes the fitness value for a given network architecture and hyperparameters in NAS.
+    Computes the fitness value for a given network s and hyperparameters in NAS.
 
-    This function constructs and trains a PyTorch Lightning model based on the provided architecture and
+    This function constructs and trains a PyTorch Lightning model based on the provided s and
         hyperparameters.
     It uses the xAIWakesDataModule for data loading and preprocessing. The fitness is calculated based on the test
         accuracy and F1 score obtained after training the model.
@@ -25,7 +26,7 @@ def compute_fitness_value(position, keys, architecture, is_final=False):
     Parameters:
     position (list): A list of hyperparameter values corresponding to the keys.
     keys (list): A list of hyperparameter names.
-    architecture (list): A list of dictionaries defining the neural network architecture.
+    s (list): A list of dictionaries defining the neural network architecture.
 
     Returns:
     float: The computed fitness value, a weighted average of accuracy and F1 score.
@@ -45,16 +46,9 @@ def compute_fitness_value(position, keys, architecture, is_final=False):
     accelerator = config.get(section='Computation', option='accelerator')
 
     # Get model parameters
-    model_parameters = {}
-    log_lr = config.getfloat(section='Search Space', option='default_log_lr')
-    bs = config.getint(section='Search Space', option='default_bs')
-    for index, parameter in enumerate(keys):
-        model_parameters[parameter] = position[index]
-        if parameter == 'log_learning_rate':
-            log_lr = model_parameters['log_learning_rate']
-        elif parameter == 'batch_size':
-            bs = model_parameters['batch_size']
+    log_lr = log_learning_rate if log_learning_rate != None else config.getfloat(section='Search Space', option='default_log_lr')
     lr = 10**log_lr
+    bs = batch_size if batch_size != None else config.getint(section='Search Space', option='default_bs')
 
     # DATA
     csv_file = config['Dataset']['csv_path']
@@ -88,18 +82,18 @@ def compute_fitness_value(position, keys, architecture, is_final=False):
     )
     in_channels = 4
     """
-    print(f"\n\n***\n{architecture}\n{model_parameters}\n***\n\n")
+    print(f"\n\n***\n\n{parsed_layers}\n***\n\n")
+    #exit()
 
     # MODEL
     if is_final == False:
         model = classes.GenericLightningNetwork(
-            parsed_layers=architecture,
+            parsed_layers=parsed_layers,
             input_channels=in_channels,
             #input_height=256,
             #input_width=256,
             num_classes=num_classes,
             learning_rate=lr,
-            model_parameters=model_parameters,
         )
         trainer = pl.Trainer(
             accelerator=accelerator,
@@ -109,6 +103,12 @@ def compute_fitness_value(position, keys, architecture, is_final=False):
             check_val_every_n_epoch=51,
             callbacks=[classes.TrainEarlyStopping(monitor='train_loss', mode="min", patience=2)]
         )
+
+        ## Tuner
+        #tuner = Tuner(trainer)
+        #tuner.scale_batch_size(model, mode="binsearch")
+        #tuner.lr_find(model)
+
         # Training
         training_start_time = time.time()
         trainer.fit(model, dm)
@@ -120,8 +120,7 @@ def compute_fitness_value(position, keys, architecture, is_final=False):
         f1 = results[0].get('test_f1_score')
         mcc = results[0].get('test_mcc')
         #fitness = 0.5*(mcc+f1)*(1/(training_time/60))
-        #fitness = (mcc+acc+f1)/3
-        fitness = mcc
+        fitness = (mcc+acc+f1)/3
 
         print(f"Training time: {training_time}")
         print(f"Accuracy: {acc}")
@@ -141,13 +140,12 @@ def compute_fitness_value(position, keys, architecture, is_final=False):
         logger = TensorBoardLogger(save_dir=checkpoints_path, name=f"OptimizedModel_{current_datetime}")
         #checkpoint_filepath = os.path.join(checkpoints_path, f"OptimizedModel_{current_datetime}_Checkpoint.ckpt")
         model = classes.GenericLightningNetwork(
-            parsed_layers=architecture,
+            parsed_layers=parsed_layers,
             input_channels=in_channels,
             # input_height=256,
             # input_width=256,
             num_classes=num_classes,
             learning_rate=lr,
-            model_parameters=model_parameters,
         )
         trainer = pl.Trainer(
             accelerator=accelerator,
@@ -168,8 +166,7 @@ def compute_fitness_value(position, keys, architecture, is_final=False):
         acc = results[0].get('test_accuracy')
         f1 = results[0].get('test_f1_score')
         mcc = results[0].get('test_mcc')
-        #fitness = (mcc+acc+f1)/3
-        fitness = mcc
+        fitness = (mcc+acc+f1)/3
 
         print("FINAL RUN COMPLETED:")
         print(f"Training time: {training_time}")
@@ -182,7 +179,7 @@ def compute_fitness_value(position, keys, architecture, is_final=False):
         txt_filename = f'Optimized_Architecture_Final_Run_{current_datetime}.txt'
         txt_filepath = os.path.join(checkpoints_path, txt_filename)
         with open(txt_filepath, 'w') as txt_file:
-            txt_file.write(f"For the following architecture:\n{architecture}\n")
+            txt_file.write(f"For the following s:\n{parsed_layers}\n")
             txt_file.write(f"\nTraining time: {training_time}")
             txt_file.write(f"\nAccuracy: {acc}")
             txt_file.write(f"\nF1 score: {f1}")

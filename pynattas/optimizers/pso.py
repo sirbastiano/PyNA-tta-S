@@ -19,8 +19,9 @@ def update_global_best(swarm, old_global_best_position, old_global_best_fitness)
     return new_global_best_position, new_global_best_fitness
 
 
-def pso_optimizer(architecture, search_space, max_iter, n_particles, c1, c2, w, logs_directory):
-    search_space_keys = search_space.keys()
+def pso_optimizer(architecture_code, parsed_layers, search_space, max_iter, n_particles, c1, c2, w, logs_directory):
+    search_space_keys = list(search_space.keys())
+    print(search_space_keys)
     search_space_values = list(search_space.values())
     dim = len(search_space_values)
 
@@ -33,11 +34,16 @@ def pso_optimizer(architecture, search_space, max_iter, n_particles, c1, c2, w, 
     swarm = []
     for i in range(n_particles):
         temp_particle = classes.Particle(search_space_values, seed=2 * i)
-        temp_particle.current_fitness = fitness.compute_fitness_value(
-            position=temp_particle.current_position,
-            keys=search_space_keys,
-            architecture=architecture,
-        )
+        temp_parsed_layers, temp_log_learning_rate, temp_batch_size = utils.update_parsed_layers_and_extract_specials(
+            parsed_layers=parsed_layers, 
+            position=temp_particle.current_position, 
+            search_space_keys=search_space_keys
+            )
+        temp_particle.fitness = fitness.compute_fitness_value(
+            parsed_layers=temp_parsed_layers, 
+            log_learning_rate=temp_log_learning_rate, 
+            batch_size=temp_batch_size
+            )
         temp_particle.best_fitness = temp_particle.current_fitness
         swarm.append(temp_particle)
 
@@ -96,11 +102,17 @@ def pso_optimizer(architecture, search_space, max_iter, n_particles, c1, c2, w, 
                     particle.current_position[j] = clamped_position[j]
                     print(f"A particle got clamped in dimension {j}.")
 
+            # fitness calculation of new solution
+            temp_parsed_layers, temp_log_learning_rate, temp_batch_size = utils.update_parsed_layers_and_extract_specials(
+                parsed_layers=parsed_layers, 
+                position=particle.current_position, 
+                search_space_keys=search_space_keys,
+                )
             particle.current_fitness = fitness.compute_fitness_value(
-                position=particle.current_position,
-                keys=search_space_keys,
-                architecture=architecture,
-            )
+                parsed_layers=temp_parsed_layers,
+                log_learning_rate=temp_log_learning_rate, 
+                batch_size=temp_batch_size,
+                )
 
             if particle.best_fitness < particle.current_fitness:
                 particle.best_position = particle.current_position
@@ -138,10 +150,18 @@ def pso_optimizer(architecture, search_space, max_iter, n_particles, c1, c2, w, 
     plt.savefig(os.path.join(logs_directory, f'plot_stats_over_iterations.png'), bbox_inches='tight')
     #plt.show()
 
-    # The final result is the position of the alpha
+    # The final result is the position of the historically best particle
+    best_parsed_layers, best_log_learning_rate, best_batch_size = utils.update_parsed_layers_and_extract_specials(
+        parsed_layers=parsed_layers, 
+        position=global_best_position, 
+        search_space_keys=search_space_keys,
+        )
     best_fit = {
         "position": global_best_position,
-        "fitness": global_best_fitness
+        "fitness": global_best_fitness,
+        "parsed_layers": best_parsed_layers,
+        "log_learning_rate": best_log_learning_rate,
+        "batch_size": best_batch_size,
     }
 
     return best_fit

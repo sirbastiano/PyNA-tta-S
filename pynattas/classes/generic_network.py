@@ -16,7 +16,7 @@ class GenericNetwork(nn.Module):
         Parameters:
         -parsed_layers (list of dicts): A list where each element is a dictionary specifying a layer type and its
             parameters.
-        -model_parameters (dict): A dictionary containing model-specific parameters like kernel size, stride, etc., for
+        -layer (dict): A dictionary containing model-specific parameters like kernel size, stride, etc., for
             each layer.
         -input_channels (int, optional): The number of input channels. Default is 4.
         -input_height (int, optional): The height of the input tensor. Default is 256.
@@ -25,7 +25,7 @@ class GenericNetwork(nn.Module):
 
         The architecture of the network is defined by the 'parsed_layers', which is a list of dictionaries where each
         dictionary contains the type of layer ('Conv2D', 'MBConv', etc.) and specific parameters for that layer.
-        The 'model_parameters' dictionary complements this by providing detailed configuration for each layer,
+        The 'layer' dictionary complements this by providing detailed configuration for each layer,
         which allows for fine-grained control over the network's structure.
 
         The network supports dynamic input sizes and can adjust internal layer dimensions accordingly.
@@ -33,23 +33,18 @@ class GenericNetwork(nn.Module):
 
         Example Usage:
             parsed_layers = [
-                {'type': 'Conv2D', 'activation': 'ReLU'},
-                {'type': 'MBConv', 'activation': 'GELU'},
+                {'layer_type': 'Conv2D', 'activation': 'ReLU'},
+                {'layer_type': 'MBConv', 'activation': 'GELU'},
                 ...
             ]
-            model_parameters = {
-                'Conv2D_0_kernel_size': 3,
-                'MBConv_1_expansion_factor': 4,
-                ...
-            }
-            model = GenericNetwork(parsed_layers, model_parameters)
+            model = GenericNetwork(parsed_layers)
 
         Methods:
         forward(x): Defines the forward pass of the model.
         get_activation_fn(activation): Returns the activation function based on the specified string.
     """
 
-    def __init__(self, parsed_layers, model_parameters, input_channels=3, input_height=256, input_width=256, num_classes=2):
+    def __init__(self, parsed_layers, input_channels=3, input_height=256, input_width=256, num_classes=2):
         super(GenericNetwork, self).__init__()
         self.layers = nn.ModuleList()
 
@@ -58,24 +53,24 @@ class GenericNetwork(nn.Module):
 
         current_channels = input_channels
         current_height, current_width = input_height, input_width
-        for index, layer_info in enumerate(parsed_layers):
-            layer_type = layer_info['type']
+        for layer in parsed_layers:
+            layer_type = layer['layer_type']
 
             if layer_type == 'ConvAct':
-                kernel_size = int(model_parameters.get(
-                    f'ConvAct_{index}_kernel_size',
+                kernel_size = int(layer.get(
+                    'kernel_size',
                     config['ConvAct']['default_kernel_size']
                 ))
-                stride = int(model_parameters.get(
-                    f'ConvAct_{index}_stride',
+                stride = int(layer.get(
+                    'stride',
                     config['ConvAct']['default_stride']
                 ))
-                padding = int(model_parameters.get(
-                    f'ConvAct_{index}_padding',
+                padding = int(layer.get(
+                    'padding',
                     config['ConvAct']['default_padding']
                 ))
-                out_channels_coeff = float(model_parameters.get(
-                    f'ConvAct_{index}_out_channels_coefficient',
+                out_channels_coeff = float(layer.get(
+                    'out_channels_coefficient',
                     config['ConvAct']['default_out_channels_coefficient']
                 ))
 
@@ -87,27 +82,27 @@ class GenericNetwork(nn.Module):
                     kernel_size=kernel_size,
                     stride=stride,
                     padding=padding,
-                    activation=self.get_activation_fn(layer_info['activation']),
+                    activation=self.get_activation_fn(layer['activation']),
                 )
                 current_channels = out_channels
                 current_height = ((current_height - kernel_size + 2 * padding) // stride) + 1
                 current_width = ((current_width - kernel_size + 2 * padding) // stride) + 1
 
             elif layer_type == 'ConvBnAct':
-                kernel_size = int(model_parameters.get(
-                    f'ConvBnAct_{index}_kernel_size',
+                kernel_size = int(layer.get(
+                    'kernel_size',
                     config['ConvBnAct']['default_kernel_size']
                 ))
-                stride = int(model_parameters.get(
-                    f'ConvBnAct_{index}_stride',
+                stride = int(layer.get(
+                    'stride',
                     config['ConvBnAct']['default_stride']
                 ))
-                padding = int(model_parameters.get(
-                    f'ConvBnAct_{index}_padding',
+                padding = int(layer.get(
+                    'padding',
                     config['ConvBnAct']['default_padding']
                 ))
-                out_channels_coeff = float(model_parameters.get(
-                    f'ConvBnAct_{index}_out_channels_coefficient',
+                out_channels_coeff = float(layer.get(
+                    'out_channels_coefficient',
                     config['ConvBnAct']['default_out_channels_coefficient']
                 ))
 
@@ -119,27 +114,27 @@ class GenericNetwork(nn.Module):
                     kernel_size=kernel_size,
                     stride=stride,
                     padding=padding,
-                    activation=self.get_activation_fn(layer_info['activation']),
+                    activation=self.get_activation_fn(layer['activation']),
                 )
                 current_channels = out_channels
                 current_height = ((current_height - kernel_size + 2 * padding) // stride) + 1
                 current_width = ((current_width - kernel_size + 2 * padding) // stride) + 1
 
             elif layer_type == 'ConvSE':
-                kernel_size = int(model_parameters.get(
-                    f'ConvSE_{index}_kernel_size',
+                kernel_size = int(layer.get(
+                    'kernel_size',
                     config['ConvSE']['default_kernel_size']
                 ))
-                stride = int(model_parameters.get(
-                    f'ConvSE_{index}_stride',
+                stride = int(layer.get(
+                    'stride',
                     config['ConvSE']['default_stride']
                 ))
-                padding = int(model_parameters.get(
-                    f'ConvSE_{index}_padding',
+                padding = int(layer.get(
+                    'padding',
                     config['ConvSE']['default_padding']
                 ))
-                out_channels_coeff = float(model_parameters.get(
-                    f'ConvSE_{index}_out_channels_coefficient',
+                out_channels_coeff = float(layer.get(
+                    'out_channels_coefficient',
                     config['ConvSE']['default_out_channels_coefficient']
                 ))
 
@@ -151,7 +146,7 @@ class GenericNetwork(nn.Module):
                     kernel_size=kernel_size,
                     stride=stride,
                     padding=padding,
-                    activation=self.get_activation_fn(layer_info['activation']),
+                    activation=self.get_activation_fn(layer['activation']),
                 )
                 current_channels = out_channels
                 current_height = ((current_height - kernel_size + 2 * padding) // stride) + 1
@@ -159,12 +154,12 @@ class GenericNetwork(nn.Module):
 
             elif layer_type == 'MBConv':
                 # Extracting MBConv parameters
-                expansion_factor = int(model_parameters.get(
-                    f'MBConv_{index}_expansion_factor',
+                expansion_factor = int(layer.get(
+                    'expansion_factor',
                     config['MBConv']['default_expansion_factor']
                 ))
-                dw_kernel_size = int(model_parameters.get(
-                    f'MBConv_{index}_dw_kernel_size',
+                dw_kernel_size = int(layer.get(
+                    'dw_kernel_size',
                     config['MBConv']['default_dw_kernel_size']
                 ))
 
@@ -174,7 +169,7 @@ class GenericNetwork(nn.Module):
                     out_channels=current_channels,
                     expansion_factor=expansion_factor,
                     dw_kernel_size=dw_kernel_size,
-                    activation=self.get_activation_fn(layer_info['activation']),
+                    activation=self.get_activation_fn(layer['activation']),
                 )
 
                 current_channels = current_channels
@@ -183,12 +178,12 @@ class GenericNetwork(nn.Module):
 
             elif layer_type == 'MBConvNoRes':
                 # Extracting MBConv parameters
-                expansion_factor = int(model_parameters.get(
-                    f'MBConvNoRes_{index}_expansion_factor',
+                expansion_factor = int(layer.get(
+                    'expansion_factor',
                     config['MBConvNoRes']['default_expansion_factor']
                 ))
-                dw_kernel_size = int(model_parameters.get(
-                    f'MBConvNoRes_{index}_dw_kernel_size',
+                dw_kernel_size = int(layer.get(
+                    'dw_kernel_size',
                     config['MBConvNoRes']['default_dw_kernel_size']
                 ))
 
@@ -198,7 +193,7 @@ class GenericNetwork(nn.Module):
                     out_channels=current_channels,
                     dw_kernel_size=dw_kernel_size,
                     expansion_factor=expansion_factor,
-                    activation=self.get_activation_fn(layer_info['activation']),
+                    activation=self.get_activation_fn(layer['activation']),
                 )
 
                 current_channels = current_channels
@@ -207,12 +202,12 @@ class GenericNetwork(nn.Module):
             
             elif layer_type == 'CSPConvBlock':
                 # Extracting CSPBlock parameters
-                out_channels_coeff = float(model_parameters.get(
-                    f'CSPConvBlock_{index}_out_channels_coefficient',
+                out_channels_coeff = float(layer.get(
+                    'out_channels_coefficient',
                     config['CSPConvBlock']['default_out_channels_coefficient']
                 ))
-                num_blocks = int(model_parameters.get(
-                    f'CSPConvBlock_{index}_num_blocks',
+                num_blocks = int(layer.get(
+                    'num_blocks',
                     config['CSPConvBlock']['default_num_blocks']
                 ))
                 out_channels = int(current_channels * out_channels_coeff)
@@ -221,7 +216,7 @@ class GenericNetwork(nn.Module):
                     in_channels=current_channels,
                     #out_channels=current_channels,
                     num_blocks=num_blocks,
-                    activation=self.get_activation_fn(layer_info['activation']),
+                    activation=self.get_activation_fn(layer['activation']),
                 )
                 current_channels = out_channels
                 current_height = current_height
@@ -229,20 +224,20 @@ class GenericNetwork(nn.Module):
 
             elif layer_type == 'CSPMBConvBlock':
                 # Extracting CSPBlock parameters
-                out_channels_coeff = float(model_parameters.get(
-                    f'CSPMBConvBlock_{index}_out_channels_coefficient',
+                out_channels_coeff = float(layer.get(
+                    'out_channels_coefficient',
                     config['CSPMBConvBlock']['default_out_channels_coefficient']
                 ))
-                num_blocks = int(model_parameters.get(
-                    f'CSPMBConvBlock_{index}_num_blocks',
+                num_blocks = int(layer.get(
+                    'num_blocks',
                     config['CSPMBConvBlock']['default_num_blocks']
                 ))
-                expansion_factor = int(model_parameters.get(
-                    f'CSPMBConvBlock_{index}_expansion_factor',
+                expansion_factor = int(layer.get(
+                    'expansion_factor',
                     config['CSPMBConvBlock']['default_expansion_factor']
                 ))
-                dw_kernel_size = int(model_parameters.get(
-                    f'CSPMBConvBlock_{index}_dw_kernel_size',
+                dw_kernel_size = int(layer.get(
+                    'dw_kernel_size',
                     config['CSPMBConvBlock']['default_dw_kernel_size']
                 ))
                 out_channels = int(current_channels * out_channels_coeff)
@@ -253,13 +248,13 @@ class GenericNetwork(nn.Module):
                     expansion_factor=expansion_factor,
                     dw_kernel_size=dw_kernel_size,
                     num_blocks=num_blocks,
-                    activation=self.get_activation_fn(layer_info['activation']),
+                    activation=self.get_activation_fn(layer['activation']),
                 )
                 current_channels = out_channels
 
             elif layer_type == 'DenseNetBlock':
-                out_channels_coeff = float(model_parameters.get(
-                    f'DenseNetBlock_{index}_out_channels_coefficient',
+                out_channels_coeff = float(layer.get(
+                    'out_channels_coefficient',
                     config['DenseNetBlock']['default_out_channels_coefficient']
                 ))
 
@@ -268,19 +263,19 @@ class GenericNetwork(nn.Module):
                 layer = convolutions.DenseNetBlock(
                     in_channels=current_channels,
                     out_channels=out_channels,
-                    activation=self.get_activation_fn(layer_info['activation']),
+                    activation=self.get_activation_fn(layer['activation']),
                 )
                 current_channels = current_channels + out_channels
                 current_height = current_height
                 current_width = current_width
 
             elif layer_type == 'ResNetBlock':
-                out_channels_coeff = float(model_parameters.get(
-                    f'ResNetBlock_{index}_out_channels_coefficient',
+                out_channels_coeff = float(layer.get(
+                    'out_channels_coefficient',
                     config['ResNetBlock']['default_out_channels_coefficient']
                 ))
-                reduction_factor = int(model_parameters.get(
-                    f'ResNetBlock_{index}_reduction_factor',
+                reduction_factor = int(layer.get(
+                    'reduction_factor',
                     config['ResNetBlock']['default_reduction_factor']
                 ))
 
@@ -289,19 +284,19 @@ class GenericNetwork(nn.Module):
                 layer = convolutions.ResNetBlock(
                     in_channels=current_channels,
                     out_channels=current_channels,
-                    activation=self.get_activation_fn(layer_info['activation']),
+                    activation=self.get_activation_fn(layer['activation']),
                 )
                 current_channels = current_channels
                 current_height = current_height
                 current_width = current_width
 
             elif layer_type == 'AvgPool':
-                kernel_size = int(model_parameters.get(
-                    f'AvgPool_{index}_kernel_size',
+                kernel_size = int(layer.get(
+                    'kernel_size',
                     config['AvgPool']['default_kernel_size']
                 ))
-                stride = int(model_parameters.get(
-                    f'AvgPool_{index}_stride',
+                stride = int(layer.get(
+                    'stride',
                     config['AvgPool']['default_stride']
                 ))
 
@@ -312,12 +307,12 @@ class GenericNetwork(nn.Module):
                 current_width = ((current_width - kernel_size) // stride) + 1
 
             elif layer_type == 'MaxPool':
-                kernel_size = int(model_parameters.get(
-                    f'MaxPool_{index}_kernel_size',
+                kernel_size = int(layer.get(
+                    'kernel_size',
                     config['MaxPool']['default_kernel_size']
                 ))
-                stride = int(model_parameters.get(
-                    f'MaxPool_{index}_stride',
+                stride = int(layer.get(
+                    'stride',
                     config['MaxPool']['default_stride']
                 ))
 

@@ -10,12 +10,11 @@ import matplotlib.pyplot as plt
 
 
 class GenericLightningNetwork(pl.LightningModule):
-    def __init__(self, parsed_layers, model_parameters, input_channels, num_classes, learning_rate=1e-3):
+    def __init__(self, parsed_layers, input_channels, num_classes, learning_rate=1e-3):
         super(GenericLightningNetwork, self).__init__()
         self.lr = learning_rate
         self.model = GenericNetwork(
             parsed_layers=parsed_layers,
-            model_parameters=model_parameters,
             input_channels=input_channels,
             num_classes=num_classes,
         )

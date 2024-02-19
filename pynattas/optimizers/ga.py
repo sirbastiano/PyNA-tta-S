@@ -51,17 +51,17 @@ def mutation(children, mutation_probability):
     list: The mutated child chromosomes.
     """
     for child in children:
-        for gene_i in range(len(child.chromosome)):
+        for gene_index in range(len(child.chromosome)):
             rnd = random.random()
             if rnd <= mutation_probability:
-                gene = child.chromosome[gene_i]
+                gene = child.chromosome[gene_index]
                 # Mutate based on the type of gene
-                if len(gene) == 3:  # Triplet gene (convolutional layers)
-                    child.chromosome[gene_i] = architecture_builder.random_triplet_gene()
-                elif len(gene) == 1 and gene_i == len(child.chromosome) - 2:  # Pooling layer gene
-                    child.chromosome[gene_i] = architecture_builder.random_pooling_gene()
-                elif len(gene) == 1 and gene_i == len(child.chromosome) - 1:  # Head gene
-                    child.chromosome[gene_i] = architecture_builder.random_head_gene()
+                if gene[0]=='L':  # Backbone layers
+                    child.chromosome[gene_index] = architecture_builder.generate_layer_code()
+                elif gene[0]=='P': # Pooling layer gene
+                    child.chromosome[gene_index] = architecture_builder.generate_pooling_layer_code()
+                elif gene[0]=='H': # Head gene
+                    child.chromosome[gene_index] = architecture_builder.generate_head_code()
                 else:
                     print("Something went wrong with mutation.")
                     exit()
@@ -80,29 +80,22 @@ def remove_duplicates(population, max_layers):
     list: The updated population with duplicates removed.
     """
     unique_architectures = set()
+    updated_population = []
 
     for individual in population:
-        # Check if the architecture is already in the set
-        if individual.architecture in unique_architectures:
-            # Create a new unique individual if a duplicate is found
-            # Make new individuals until a new one is found. t added to avoid an infinite loop
-            new_individual = None
-            t = 0
-            while new_individual is None or new_individual.architecture in unique_architectures or t == 50:
-                new_individual = classes.Individual(max_layers)
-                t = t + 1
-
-            # Replace the duplicate individual with the new unique individual
-            individual.architecture = new_individual.architecture
-            individual.chromosome = new_individual.chromosome
-            individual.fitness = 0.0
-        else:
-            # Add the architecture to the set of unique architectures
+        if individual.architecture not in unique_architectures:
             unique_architectures.add(individual.architecture)
+            updated_population.append(individual)
+        else:
+            # Attempt to generate a unique individual up to 50 times
+            for _ in range(50):
+                new_individual = classes.Individual(max_layers=max_layers)
+                if new_individual.architecture not in unique_architectures:
+                    unique_architectures.add(new_individual.architecture)
+                    updated_population.append(new_individual)
+                    break
 
-    return population
-
-
+    return updated_population
 
 
 def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutation_probability, logs_directory):
@@ -150,10 +143,10 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
 
     print("Starting chromosome pool:")
     for i in population:
-        parsed_layers = utils.parse_architecture_code(i.architecture)
-        print(f"Individual {i}")
-        print(f"chromosome: {i.chromosome}")
-        i.fitness = fitness.compute_fitness_value(position=[], keys=[], architecture=parsed_layers)
+        parsed_layers = architecture_builder.parse_architecture_code(i.architecture)
+        print(f"Architecture: {i.architecture}")
+        print(f"Chromosome: {i.chromosome}")
+        i.fitness = fitness.compute_fitness_value(parsed_layers=parsed_layers)
         print(f"chromosome: {i.chromosome}, fitness: {i.fitness}\n")
 
     # Starting population update
@@ -203,11 +196,11 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
         population = remove_duplicates(population=population, max_layers=max_layers)
 
         for i in population:
-            parsed_layers = utils.parse_architecture_code(i.architecture)
-            print("chromosome:", i.chromosome)
-            i.fitness = fitness.compute_fitness_value(position=[], keys=[], architecture=parsed_layers)
-            print("chromosome:", i.chromosome)
-            print("fitness:", i.fitness, "\n")
+            parsed_layers = architecture_builder.parse_architecture_code(i.architecture)
+            print(f"Architecture: {i.architecture}")
+            print(f"Chromosome: {i.chromosome}")
+            i.fitness = fitness.compute_fitness_value(parsed_layers=parsed_layers)
+            print(f"chromosome: {i.chromosome}, fitness: {i.fitness}\n")
 
         # Update historical best
         population = sorted(population, key=lambda temp: temp.fitness, reverse=True)

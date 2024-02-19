@@ -11,3 +11,4 @@ class Particle:
         self.current_velocity = [self.rnd.gauss(0, 0.1) for _ in range(len(self.current_position))]
         self.current_fitness = 0.0
         self.best_fitness = self.current_fitness
+        

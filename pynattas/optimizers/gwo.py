@@ -7,8 +7,14 @@ from .. import classes
 from ..functions import *
 
 
-def gwo_optimizer(architecture, search_space, max_iter, n_wolves, logs_directory):
+def gwo_optimizer(architecture_code, parsed_layers, search_space, max_iter, n_wolves, logs_directory):
+    # Sanity checks
+    if n_wolves < 3:
+        print("Error: Not enough wolves! Population size should be at least 3.")
+        exit()
+
     search_space_keys = list(search_space.keys())
+    print(search_space_keys)
     search_space_values = list(search_space.values())
     dim = len(search_space_values)
 
@@ -21,13 +27,17 @@ def gwo_optimizer(architecture, search_space, max_iter, n_wolves, logs_directory
     population = []
     print("START:")
     for i in range(n_wolves):
-        temp_wolf = classes.Wolf(search_space_values, seed=7 * i)
-        temp_full_position = temp_wolf.position
+        temp_wolf = classes.Wolf(search_space_values, seed=2*i)
+        temp_parsed_layers, temp_log_learning_rate, temp_batch_size = utils.update_parsed_layers_and_extract_specials(
+            parsed_layers=parsed_layers, 
+            position=temp_wolf.position, 
+            search_space_keys=search_space_keys
+            )
         temp_wolf.fitness = fitness.compute_fitness_value(
-            architecture=architecture,
-            position=temp_wolf.position,
-            keys=search_space_keys,
-        )
+            parsed_layers=temp_parsed_layers, 
+            log_learning_rate=temp_log_learning_rate, 
+            batch_size=temp_batch_size
+            )
         population.append(temp_wolf)
         print("position:", temp_wolf.position)
         print("fitness:", temp_wolf.fitness, "\n")
@@ -87,11 +97,16 @@ def gwo_optimizer(architecture, search_space, max_iter, n_wolves, logs_directory
                     print("This wolf tried to escape and got CLAMPED!")
 
             # fitness calculation of new solution
+            temp_parsed_layers, temp_log_learning_rate, temp_batch_size = utils.update_parsed_layers_and_extract_specials(
+                parsed_layers=parsed_layers, 
+                position=Xnew, 
+                search_space_keys=search_space_keys,
+                )
             fnew = fitness.compute_fitness_value(
-                architecture=architecture,
-                position=Xnew,
-                keys=search_space_keys,
-            )
+                parsed_layers=temp_parsed_layers,
+                log_learning_rate=temp_log_learning_rate, 
+                batch_size=temp_batch_size,
+                )
 
             # greedy selection
             if fnew >= w.fitness:
@@ -131,9 +146,17 @@ def gwo_optimizer(architecture, search_space, max_iter, n_wolves, logs_directory
     # plt.show()
 
     # The final result is the position of the alpha
+    best_parsed_layers, best_log_learning_rate, best_batch_size = utils.update_parsed_layers_and_extract_specials(
+        parsed_layers=parsed_layers, 
+        position=alpha_wolf.position, 
+        search_space_keys=search_space_keys,
+        )
     best_fit = {
         "position": alpha_wolf.position,
-        "fitness": alpha_wolf.fitness
+        "fitness": alpha_wolf.fitness,
+        "parsed_layers": best_parsed_layers,
+        "log_learning_rate": best_log_learning_rate,
+        "batch_size": best_batch_size,
     }
 
     return best_fit

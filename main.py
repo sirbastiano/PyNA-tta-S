@@ -21,6 +21,7 @@ External dependencies include configparser, GA for NAS, and GWO/PSO for HT.
 # Imports
 import configparser
 import pynattas as pnas
+from datetime import datetime
 import time
 
 if __name__ == '__main__':
@@ -69,20 +70,15 @@ if __name__ == '__main__':
 
     # Use NAS result if available, otherwise load from config
     architecture_code = nas_result['position'] if nas_check else config['NAS']['architecture_code']
-    layers = pnas.functions.utils.parse_architecture_code(architecture_code)
-    print('HT Layers:', layers)
-    search_space = {}  # initialize search space for ht_check and final run
-    best_position = []  # initialize final best position for final run
+    parsed_layers = pnas.functions.architecture_builder.parse_architecture_code(architecture_code)
 
     # HT
     if ht_check:
         print("\n*** Hyperparameter Tuning ***\n")
+        print('HT Layers:', parsed_layers)
 
         # Define HT search space
-        search_space_layers = pnas.functions.utils.generate_layers_search_space(layers)
-        for parameter in search_space_layers.keys():
-            search_space[parameter] = search_space_layers.get(parameter)
-
+        search_space = pnas.functions.utils.generate_layers_search_space(parsed_layers)
         search_space['log_learning_rate'] = (
             float(config['Search Space']['log_lr_min']),
             float(config['Search Space']['log_lr_max']),
@@ -100,7 +96,8 @@ if __name__ == '__main__':
             population_size = int(config['GWO']['population_size'])
             log_path = str(config['GWO']['logs_dir_GWO'])
             ht_result = pnas.optimizers.gwo.gwo_optimizer(
-                architecture=layers,
+                parsed_layers=parsed_layers,
+                architecture_code=architecture_code,
                 search_space=search_space,
                 max_iter=max_iterations,
                 n_wolves=population_size,
@@ -114,7 +111,8 @@ if __name__ == '__main__':
             social_coefficient = float(config['PSO']['social_coefficient'])
             inertia_coefficient = float(config['PSO']['inertia_coefficient'])
             ht_result = pnas.optimizers.pso.pso_optimizer(
-                architecture=layers,
+                parsed_layers=parsed_layers,
+                architecture_code=architecture_code,
                 search_space=search_space,
                 max_iter=max_iterations,
                 n_particles=population_size,
@@ -132,25 +130,26 @@ if __name__ == '__main__':
             ht_result,
             search_space,
             architecture_code,
-            layers,
+            parsed_layers,
             optimizer_selection,
             max_iterations,
             log_path,
         )
 
         best_position = ht_result['position']
+        best_parsed_layers = ht_result['parsed_layers']
+        best_architecture_code = pnas.functions.architecture_builder.generate_code_from_parsed_architecture(best_parsed_layers)
 
         # Print and write HT results
-        print(f"HT completed. Best hyperparameters for architecture {architecture_code}: {ht_result}")
-        with open(f"{log_path}/ht_{architecture_code}_results.txt", "w") as file:
-            file.write(f"Best hyperparameters for architecture {architecture_code}: {ht_result}")
+        current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        print(f"HT completed. Final best architecture starting from {architecture_code} is {best_architecture_code}.")
+        with open(f"{log_path}/ht_{current_datetime}_results.txt", "w") as file:
+            file.write(f"Final best architecture starting from {architecture_code} is {best_architecture_code}.\nFull results:\n{ht_result}")
+
+        architecture_code = best_architecture_code
+        parsed_layers = best_parsed_layers
 
     end_time = time.time()
-    print(f"Process finished in {end_time - start_time} s.")
+    print(f"Process finished in {end_time - start_time} s. Starting final run...")
 
-    pnas.functions.fitness.compute_fitness_value(
-        position=best_position,
-        keys=list(search_space.keys()),
-        architecture=layers,
-        is_final=True,
-        )
+    pnas.functions.fitness.compute_fitness_value(parsed_layers=parsed_layers)

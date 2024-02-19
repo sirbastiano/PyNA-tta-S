@@ -1,57 +1,9 @@
 import configparser
 import os
+from .. import configuration
 
-# NOTE: add functions for plotting the population at each iteration. Maybe add function to create the gif as well.
 
-
-def parse_architecture_code(code):
-    layers = []
-    i = 0
-    while i < len(code) - 2:  # Exclude the last two characters for pooling and head
-        if code[i] in ['b', 'c', 'd', 'e', 'm', 'n', 'o', 'p', 'R']:
-            if code[i] == 'b':
-                layer_type = 'ConvAct'
-            elif code[i] == 'c':
-                layer_type = 'ConvBnAct'
-            elif code[i] == 'e':
-                layer_type = 'ConvSE'
-            elif code[i] == 'd':
-                layer_type = 'DenseNetBlock'
-            elif code[i] == 'm':
-                layer_type = 'MBConv'
-            elif code[i] == 'n':
-                layer_type = 'MBConvNoRes' 
-            elif code[i] == 'o':
-                layer_type = 'CSPConvBlock'
-            elif code[i] == 'p':
-                layer_type = 'CSPMBConvBlock'
-            elif code[i] == 'R':
-                layer_type = 'ResNetBlock'
-            else:
-                raise ValueError(f"Unknown layer type: {code[i]}")
-
-            num_layers = int(code[i+1])
-            activation_type = 'ReLU' if code[i+2] == 'r' else 'GELU'
-
-            for _ in range(num_layers):
-                layers.append({'type': layer_type, 'activation': activation_type})
-                if 'a' in code:
-                    layers.append({'type': 'AvgPool'})
-                if 'M' in code:
-                    layers.append({'type': 'MaxPool'})
-
-            i += 3  # Move past the triplet
-        else:
-            i += 1  # Move past the pooling layer identifier
-
-    # Process the last character for the head
-    if code[-1] == 'C':
-        layers.append({'type': 'ClassificationHead'})
-    else:
-        raise ValueError(f"Unknown head type: {code[-1]}")
-
-    return layers
-
+# TODO: add functions for plotting the population at each iteration. Maybe add function to create the gif as well.
 
 def generate_layers_search_space(parsed_layers):
     config = configparser.ConfigParser()
@@ -59,49 +11,69 @@ def generate_layers_search_space(parsed_layers):
 
     search_space = {}
     for index, layer in enumerate(parsed_layers):
-        layer_type = layer['type']
-
-        # Define parameters for each layer type
-        parameters = {
-            'ConvAct': ['kernel_size', 'out_channels_coefficient', 'stride', 'padding'],
-            'ConvBnAct': ['kernel_size', 'out_channels_coefficient', 'stride', 'padding'],
-            'ConvSE': ['kernel_size', 'out_channels_coefficient', 'stride', 'padding'],
-            'DenseNetBlock': ['out_channels_coefficient'],
-            'MBConv': ['expansion_factor'],
-            'MBConvNoRes': ['expansion_factor'],
-            'CSPConvBlock': ['num_blocks'],
-            'CSPMBConvBlock': ['num_blocks', 'expansion_factor'],
-            'ResNetBlock': ['reduction_factor'],
-            #'AvgPool': [],
-            #'MaxPool': [],
-            # Add other layers as needed
-        }
+        layer_type = layer['layer_type']
 
         # Get the parameters for the specific layer type
-        if layer_type in parameters:
-            for param in parameters[layer_type]:
-                range_key = f"min_{param}", f"max_{param}"
-                param_key = f"{layer_type}_{index}_{param}"  # Unique key using layer type, index, and parameter name
-                search_space[param_key] = (
-                    float(config[layer_type][range_key[0]]),
-                    float(config[layer_type][range_key[1]]),
-                )
+        if layer_type in configuration.layer_parameters:
+            for param in configuration.layer_parameters[layer_type]:
+                if param != 'activation' and param != 'num_blocks':
+                    range_key = f"min_{param}", f"max_{param}"
+                    param_key = f"{layer_type}_{index}_{param}"  # Unique key using layer type, index, and parameter name
+                    search_space[param_key] = (
+                        float(config[layer_type][range_key[0]]),
+                        float(config[layer_type][range_key[1]]),
+                    )
 
     return search_space
 
 
-def generate_ht_search_space():
+def generate_bs_lr_search_space(lr_check = True, bs_check = True):
     config = configparser.ConfigParser()
     config.read('config.ini')
+    search_space = {}
 
-    bs_min = float(config['Search Space']['bs_min'])
-    bs_max = float(config['Search Space']['bs_max'])
-    log_lr_min = float(config['Search Space']['log_lr_min'])
-    log_lr_max = float(config['Search Space']['log_lr_max'])
-
-    search_space = {['log_learning_rate', (log_lr_min, log_lr_max)], ['batch_size', (bs_min, bs_max)]}
+    if lr_check:
+        log_lr_min = float(config['Search Space']['log_lr_min'])
+        log_lr_max = float(config['Search Space']['log_lr_max'])
+        search_space['log_learning_rate'] = (log_lr_min, log_lr_max)
+    
+    if bs_check:
+        bs_min = float(config['Search Space']['bs_min'])
+        bs_max = float(config['Search Space']['bs_max'])
+        search_space['batch_size'] = (bs_min, bs_max)
 
     return search_space
+
+
+def update_parsed_layers_and_extract_specials(parsed_layers, position, search_space_keys):
+    """
+    Updates parsed_layers with values from position based on keys in search_space_keys.
+    
+    Parameters:
+    - parsed_layers (list): A list of dictionaries, where each dictionary represents layer parameters.
+    - position (list): A list of values corresponding to the keys in search_space_keys.
+    - search_space_keys (list): A list of keys indicating where to update values in parsed_layers.
+    """
+    temp_position = position.copy()
+
+    # Pop the values for log_learning_rate and batch_size
+    batch_size = temp_position.pop() if 'batch_size' in search_space_keys[-2:] else None
+    log_learning_rate = temp_position.pop() if 'log_learning_rate' in search_space_keys[-2:] else None
+    
+    # Remove them from search_space_keys if present
+    search_space_keys = [key for key in search_space_keys if key not in ['log_learning_rate', 'batch_size']]
+
+    for index, key in enumerate(search_space_keys):
+        # Parse the key structure to identify layer index and parameter
+        parts = key.split('_')
+        layer_index = int(parts[1])
+        parameter = '_'.join(parts[2:])  # Handle cases where parameter names might contain '_'
+        
+        # Update the corresponding dictionary in parsed_layers
+        if layer_index < len(parsed_layers) and parameter in parsed_layers[layer_index]:
+            parsed_layers[layer_index][parameter] = round(temp_position[index])
+    
+    return parsed_layers, log_learning_rate, batch_size
 
 
 def show_population(population, generation, logs_dir, historical_best_fitness, fittest_individual):

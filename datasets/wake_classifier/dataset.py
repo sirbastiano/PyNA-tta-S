@@ -97,3 +97,46 @@ class xAIWakesDataModule(pl.LightningDataModule):
             shuffle=False,
             persistent_workers=True,
         )
+    
+####
+
+def load_stack_by_index_inf(stack_folder, index):
+    # Construct the filename based on the index
+    filename = f"stack_{index}.npy"
+
+    # Join the destination folder path with the filename
+    file_path = os.path.join(stack_folder, filename)
+
+    # Load the stack using numpy
+    stack = np.load(file_path)
+
+    # Convert numpy array to a torch Tensor
+    stack = torch.from_numpy(stack)
+
+    # Optionally, ensure the type is float (if required by your model or transforms)
+    stack = stack.float()
+
+    return stack
+
+class xAIWakesDataset_inf(Dataset):
+    def __init__(self, csv_dir, root_dir, transform=None):
+        super().__init__()
+        self.annotations = pd.read_csv(csv_dir)
+        self.root_dir = root_dir
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.annotations)
+
+    def __getitem__(self, index):
+        image = load_stack_by_index_inf(self.root_dir, index)
+        y_label = torch.tensor(int(self.annotations.iloc[index, 1]))
+
+        if self.transform:
+            image = self.transform(image)
+
+        # Ensure correct dimension ordering after transformation
+        if image.ndimension() == 3:
+            image = image.permute(1, 0, 2)
+
+        return (image, y_label)

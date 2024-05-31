@@ -4,7 +4,7 @@ from torchvision import transforms
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import EarlyStopping
-from lightning.pytorch.tuner import Tuner
+#from pytorch.tuner import Tuner
 import configparser
 import os
 import time
@@ -54,7 +54,8 @@ def compute_fitness_value(parsed_layers, log_learning_rate=None, batch_size=None
     csv_file = config['Dataset']['csv_path']
     root_dir = config['Dataset']['data_path']
     num_classes = config.getint(section='Dataset', option='num_classes')
-    
+
+    """
     composed_transform = transforms.Compose([
         transforms.Resize((256, 256)),
         transforms.ToTensor(),
@@ -81,7 +82,8 @@ def compute_fitness_value(parsed_layers, log_learning_rate=None, batch_size=None
         transform=torchvision.transforms.ToTensor(),
     )
     in_channels = 4
-    """
+    #"""
+    
     print(f"\n\n***\n\n{parsed_layers}\n***\n\n")
     #exit()
 
@@ -115,12 +117,37 @@ def compute_fitness_value(parsed_layers, log_learning_rate=None, batch_size=None
         training_time = time.time() - training_start_time
 
         trainer.validate(model, dm)
+
+        # Test
+        test_start_time = time.time()
         results = trainer.test(model, dm)
+        test_time = time.time() - test_start_time
+        #inference_time = test_time/55
+
+        '''
+        # Inference
+        inference_start_time = time.time()
+        model = classes.GenericLightningNetwork(
+            parsed_layers=parsed_layers,
+            input_channels=in_channels,
+            #input_height=256,
+            #input_width=256,
+            num_classes=num_classes,
+            learning_rate=lr,
+        )
+        checkpoint = torch.load(rf"/media/warmachine/DBDISK/Andrea/DicDic/logs/tb_logs/checkpoints/OptimizedModel_2024-04-24_11-53-18/version_0/checkpoints/epoch=5-step=246.ckpt")
+        model.load_state_dict(checkpoint["state_dict"])
+        model.eval()       
+        inference_time = time.time() - inference_start_time
+        '''
+
         acc = results[0].get('test_accuracy')
         f1 = results[0].get('test_f1_score')
-        mcc = results[0].get('test_mcc')
-        #fitness = 0.5*(mcc+f1)*(1/(training_time/60))
-        fitness = (mcc+acc+f1)/3
+        mcc = results[0].get('test_mcc') 
+        # fitness = (1/6)*(1*mcc+2*f1+3*acc)*(1/(training_time/10))
+
+        num_param = sum(p.numel() for p in model.parameters())
+        fitness = (20*acc)-(num_param/1000000)
 
         print(f"Training time: {training_time}")
         print(f"Accuracy: {acc}")
@@ -132,7 +159,7 @@ def compute_fitness_value(parsed_layers, log_learning_rate=None, batch_size=None
         return fitness
     
     else:
-        print("FINAL RUN ON OPTIMIZED ARCHITECTURE")
+        print("\nFINAL RUN ON OPTIMIZED ARCHITECTURE")
 
         # MODEL
         current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -152,21 +179,32 @@ def compute_fitness_value(parsed_layers, log_learning_rate=None, batch_size=None
             min_epochs=1,
             max_epochs=50,
             logger=logger,
-            default_root_dir=checkpoints_path,
+            #enable_checkpointing=True,
+            #default_root_dir=checkpoints_path,
+            check_val_every_n_epoch=1,
             callbacks=[EarlyStopping(monitor='val_loss', mode="min", patience=3)]
         )
 
         # Training
         training_start_time = time.time()
-        trainer.fit(model, dm, )
+        trainer.fit(model, dm)
         training_time = time.time() - training_start_time
 
         trainer.validate(model, dm)
+
+        # Test
+        test_start_time = time.time()
         results = trainer.test(model, dm)
+        test_time = time.time() - test_start_time
+        #inference_time = test_time/55
+
         acc = results[0].get('test_accuracy')
         f1 = results[0].get('test_f1_score')
         mcc = results[0].get('test_mcc')
-        fitness = (mcc+acc+f1)/3
+        #fitness = (1/6)*(1*mcc+2*f1+3*acc)*(1/(training_time/10))
+
+        num_param = sum(p.numel() for p in model.parameters())
+        fitness = (20*acc)-(num_param/1000000)
 
         print("FINAL RUN COMPLETED:")
         print(f"Training time: {training_time}")

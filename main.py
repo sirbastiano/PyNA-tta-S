@@ -152,4 +152,4 @@ if __name__ == '__main__':
     end_time = time.time()
     print(f"Process finished in {end_time - start_time} s. Starting final run...")
 
-    pnas.functions.fitness.compute_fitness_value(parsed_layers=parsed_layers)
+    pnas.functions.fitness.compute_fitness_value(parsed_layers=parsed_layers, is_final=True)

@@ -18,8 +18,10 @@ class ClassificationHead(nn.Sequential):
     """
     def __init__(self, input_size, num_classes=2):
         super(ClassificationHead, self).__init__(
-            nn.Linear(input_size, 512),
+            #nn.Linear(input_size, 512),
+            nn.Linear(input_size, 256),
             nn.ReLU(),
             Dropout(p=0.4),
-            nn.Linear(512, num_classes)
+            #nn.Linear(512, num_classes)
+            nn.Linear(256, num_classes)
         )

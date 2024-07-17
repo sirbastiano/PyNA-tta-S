@@ -18,6 +18,10 @@ Flow:
 External dependencies include configparser, GA for NAS, and GWO/PSO for HT.
 """
 
+# Solve some GPU memory issues
+import os
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
+
 # Imports
 import configparser
 import pynattas as pnas
@@ -36,6 +40,10 @@ if __name__ == '__main__':
     ht_check = config.getboolean(section='Mode', option='hyperparameter_tuning')
     if not nas_check and not ht_check:
         print("Error: No mode selected. Check config_optimizer.ini for verification.")
+        exit()
+    task = config['Mode']['task']
+    if task not in ['C','D']:
+        print(f"Error: Selected Task {task} is not available. Check config_optimizer.ini for verification.")
         exit()
 
     nas_result = None
@@ -59,6 +67,7 @@ if __name__ == '__main__':
             mating_pool_cutoff=mating_pool_cutoff,
             mutation_probability=mutation_probability,
             logs_directory=log_path,
+            task=task,
         )
         # Save NAS results
         #functions.utils.save_nas_results
@@ -102,6 +111,7 @@ if __name__ == '__main__':
                 max_iter=max_iterations,
                 n_wolves=population_size,
                 logs_directory=log_path,
+                task=task,
             )
         elif optimizer_selection == '2':
             max_iterations = int(config['PSO']['max_iterations'])
@@ -120,6 +130,7 @@ if __name__ == '__main__':
                 c2=social_coefficient,
                 w=inertia_coefficient,
                 logs_directory=log_path,
+                task=task,
             )
         else:
             print('Error in HT optimizer selection. Check config_optimizer.ini for verification.')
@@ -152,4 +163,7 @@ if __name__ == '__main__':
     end_time = time.time()
     print(f"Process finished in {end_time - start_time} s. Starting final run...")
 
-    pnas.functions.fitness.compute_fitness_value(parsed_layers=parsed_layers, is_final=True)
+    if task == 'D':
+        pnas.functions.fitness.compute_fitness_value_OD(parsed_layers=parsed_layers, is_final=True)
+    else:
+        pnas.functions.fitness.compute_fitness_value(parsed_layers=parsed_layers, is_final=True)

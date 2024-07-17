@@ -13,13 +13,25 @@ class ConvAct(nn.Sequential):
         )
 
 
-class ConvBnAct(nn.Sequential):
+class ConvBnAct_old(nn.Sequential):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, activation=ReLU):
         super().__init__(
             nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding),
             nn.BatchNorm2d(num_features=out_channels),
             activation(),
         )
+    
+class ConvBnAct(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=None, activation=ReLU):
+        super(ConvBnAct, self).__init__()
+        if padding == None:
+            padding=kernel_size//2 # To maintain same convolution as a default 
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding=padding, bias=False)
+        self.bn = nn.BatchNorm2d(out_channels)
+        self.act = activation()
+
+    def forward(self, x):
+        return self.act(self.bn(self.conv(x)))
 
 
 class ConvSE(nn.Sequential):
@@ -202,6 +214,10 @@ class ResNetBasicBlock(nn.Module):
         super().__init__()
         assert out_channels == in_channels
         reduced_channels = in_channels // reduction_factor
+
+        if reduced_channels == 0:
+            reduced_channels = in_channels
+            
         self.steps = nn.Sequential(
             # Narrow to wide
             ConvBnAct(in_channels, reduced_channels, kernel_size=1, stride=1, padding=0, activation=activation),

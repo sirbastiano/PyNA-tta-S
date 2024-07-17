@@ -61,7 +61,7 @@ def mutation(children, mutation_probability):
                 elif gene[0]=='P': # Pooling layer gene
                     child.chromosome[gene_index] = architecture_builder.generate_pooling_layer_code()
                 elif gene[0]=='H': # Head gene
-                    child.chromosome[gene_index] = architecture_builder.generate_head_code()
+                    break
                 else:
                     print("Something went wrong with mutation.")
                     exit()
@@ -98,7 +98,7 @@ def remove_duplicates(population, max_layers):
     return updated_population
 
 
-def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutation_probability, logs_directory):
+def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutation_probability, logs_directory, task):
     """
     Genetic Algorithm optimizer for architecture search.
 
@@ -145,8 +145,13 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
     for i in population:
         parsed_layers = architecture_builder.parse_architecture_code(i.architecture)
         print(f"Architecture: {i.architecture}")
-        print(f"Chromosome: {i.chromosome}")
-        i.fitness = fitness.compute_fitness_value(parsed_layers=parsed_layers)
+        print(f"Chromosome: {i.chromosome}")   
+
+        if task == 'D':
+            i.fitness = fitness.compute_fitness_value_OD(parsed_layers=parsed_layers)
+        else:
+            i.fitness = fitness.compute_fitness_value(parsed_layers=parsed_layers)
+        
         print(f"chromosome: {i.chromosome}, fitness: {i.fitness}\n")
 
     # Starting population update
@@ -199,7 +204,10 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
             parsed_layers = architecture_builder.parse_architecture_code(i.architecture)
             print(f"Architecture: {i.architecture}")
             print(f"Chromosome: {i.chromosome}")
-            i.fitness = fitness.compute_fitness_value(parsed_layers=parsed_layers)
+            if task == 'D':
+                i.fitness = fitness.compute_fitness_value_OD(parsed_layers=parsed_layers)
+            else:
+                i.fitness = fitness.compute_fitness_value(parsed_layers=parsed_layers)
             print(f"chromosome: {i.chromosome}, fitness: {i.fitness}\n")
 
         # Update historical best

@@ -40,6 +40,19 @@ class ReLU(nn.Module):
 ReLUInPlace = partial(nn.ReLU, inplace=True)
 
 
+class LeakyReLU(nn.Module):
+    """
+        Leaky ReLU activation function.
+    """
+    def __init__(self, neg_slope=0.1):
+        super().__init__()
+        self.LeakyReLU = nn.LeakyReLU(negative_slope=neg_slope)
+
+    def forward(self, x):
+        return self.LeakyReLU(x)
+    
+
+# Not YET ADDED TO THE VOCABULARY
 class Sigmoid(nn.Module):
     """
         Sigmoid activation function.

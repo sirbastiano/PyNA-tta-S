@@ -13,15 +13,24 @@ convolution_layer_vocabulary = {
 activation_functions_vocabulary = {
     'r': 'ReLU',
     'g': 'GELU',
+    'l': 'LeakyReLU'
 }
 
 pooling_layer_vocabulary = {
     'a': 'AvgPool',
     'M': 'MaxPool',
+    'I': 'Identity',
 }
 
-head_vocabulary = {
+head_vocabulary_C = {
     'C': 'ClassificationHead',
+}
+
+head_vocabulary_D = {
+    'Y': 'DetectionHeadYOLOv3',
+}
+
+head_vocabulary_S = {
 }
 
 layer_parameters = {
@@ -37,6 +46,7 @@ layer_parameters = {
     'AvgPool': [],
     'MaxPool': [],
     'ClassificationHead': [],
+    'DetectionHeadYOLOv3': ['outchannel1_index', 'outchannel2_index', 'outchannel3_index'],
 }
 
 parameter_vocabulary = {
@@ -48,4 +58,7 @@ parameter_vocabulary = {
     'num_blocks': 'n',
     'reduction_factor': 'r',
     'activation': 'a',
+    'outchannel1_index': 'u',
+    'outchannel2_index': 'v',
+    'outchannel3_index': 'w',
 }

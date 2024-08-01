@@ -250,6 +250,25 @@ class ResNetBlock(nn.Module):
         return x
     
 
+# Recupera
+class ResNetBlockNB(nn.Module):
+    def __init__(self, in_channels, out_channels, reduction_factor=4, activation=ReLU, num_block=1):
+        super(ResNetBlock, self).__init__()
+        assert out_channels == in_channels
+        self.main_path = nn.Sequential(
+            *[ResNetBasicBlock(in_channels=in_channels, 
+                               out_channels=out_channels, 
+                               reduction_factor=reduction_factor, 
+                               activation=activation) for _ in range(num_block)]
+        )
+
+    def forward(self, x):
+        res = x
+        x = self.main_path(x)
+        x = torch.add(x, res)
+        return x
+
+
 """
 class ResNextBlock(nn.Module):
     def __init__(self, in_channels, out_channels, reduction_factor=4, cardinality=1, activation=ReLU):

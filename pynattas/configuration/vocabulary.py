@@ -27,7 +27,8 @@ head_vocabulary_C = {
 }
 
 head_vocabulary_D = {
-    'Y': 'DetectionHeadYOLOv3',
+    #'Y': 'DetectionHeadYOLOv3',
+    'S': 'DetectionHeadYOLOv3_SmallObjects'
 }
 
 head_vocabulary_S = {
@@ -42,11 +43,12 @@ layer_parameters = {
     'MBConvNoRes': ['expansion_factor', 'activation'],
     'CSPConvBlock': ['num_blocks', 'activation'],
     'CSPMBConvBlock': ['num_blocks', 'expansion_factor', 'activation'],
-    'ResNetBlock': ['reduction_factor', 'activation'],
+    'ResNetBlock': ['reduction_factor', 'activation'], #, 'num_blocks'
     'AvgPool': [],
     'MaxPool': [],
     'ClassificationHead': [],
     'DetectionHeadYOLOv3': ['outchannel1_index', 'outchannel2_index', 'outchannel3_index'],
+    'DetectionHeadYOLOv3_SmallObjects': ['outchannel1_index', 'outchannel2_index'],
 }
 
 parameter_vocabulary = {

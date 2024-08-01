@@ -61,6 +61,11 @@ class GenericNetwork(nn.Module):
                 parsed_layers[-1]['outchannel2_index'],
                 parsed_layers[-1]['outchannel3_index'],
             ]
+        elif parsed_layers[-1]['layer_type'] == 'DetectionHeadYOLOv3_SmallObjects':
+            self.outchannels = [
+                parsed_layers[-1]['outchannel1_index'],
+                parsed_layers[-1]['outchannel2_index'],
+            ]
         self.outchannels_size = []
         self.is_too_deep = False
 
@@ -391,6 +396,12 @@ class GenericNetwork(nn.Module):
                 self.yolo_conv_s = convolutions.ConvBnAct(self.outchannels_size[0], 256, 1)
                 layer = heads.DetectionHeadYOLOv3(num_classes=num_classes)
 
+            elif layer_type == 'DetectionHeadYOLOv3_SmallObjects':
+                # Calculate the input size for DetectionHeadYOLOv3_SmallObjects
+                self.yolo_conv_m = convolutions.ConvBnAct(self.outchannels_size[1], 512, 1)
+                self.yolo_conv_s = convolutions.ConvBnAct(self.outchannels_size[0], 256, 1)
+                layer = heads.DetectionHeadYOLOv3_SmallObjects(num_classes=num_classes)
+
             else:
                 raise ValueError(f"Unknown layer type: {layer_type}")
             
@@ -436,18 +447,13 @@ class GenericNetwork(nn.Module):
                 outchannel_tensors[0] = self.yolo_conv_s(outchannel_tensors[0])
                 return layer(outchannel_tensors[::-1]) # Reverse the output layers to have the deeper ones be first
             
+            if isinstance(layer, heads.DetectionHeadYOLOv3_SmallObjects):
+                # Change the shapes of the outchannels before feeding them into the DetectionHeadYOLOv3
+                outchannel_tensors[1] = self.yolo_conv_m(outchannel_tensors[1])
+                outchannel_tensors[0] = self.yolo_conv_s(outchannel_tensors[0])
+                return layer(outchannel_tensors[::-1]) # Reverse the output layers to have the deeper ones be first
+
             x = layer(x)
-
-            """ 
-            # Print layer weights and biases
-            if hasattr(layer, 'weight'):
-                print(f"Layer {layer_idx} weights: {layer.weight.data}")
-            if hasattr(layer, 'bias'):
-                print(f"Layer {layer_idx} biases: {layer.bias.data}")
-
-            # Print layer output statistics
-            print(f"Layer {layer_idx} output min: {x.min().item()}, max: {x.max().item()}, mean: {x.mean().item()}, std: {x.std().item()}")
-            """
 
             if layer_idx in self.outchannels:
                 outchannel_tensors.append(x)

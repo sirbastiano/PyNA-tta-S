@@ -158,7 +158,7 @@ class DetectionBlock_small(nn.Module):
     A lighter version of DetectionBlock. 
     """
     def __init__(self, in_channels, out_channels, scale, stride, num_classes, num_anchors_per_scale=3):
-        super(DetectionBlock, self).__init__()
+        super(DetectionBlock_small, self).__init__()
         assert out_channels % 2 == 0  #assert out_channels is an even number
         half_out_channels = out_channels // 2
         self.conv1 = ConvBnAct(in_channels, half_out_channels, kernel_size=1, activation=LeakyReLU)
@@ -250,24 +250,25 @@ class DetectionHeadYOLOv3(nn.Module): # Formerly YoloNetTail
 
 ###################################################################################################################################
 # YOLO Object Detection head, but smaller
-"""ANCHORS = [(10, 13), (16, 30), (33, 23), (30, 61), (62, 45), (59, 119)]
 """
-ANCHORS = [ # obtained by normalizing over 416 the classic anchors
-    (0.02403846153846154, 0.03125),
-    (0.038461538461538464, 0.07211538461538461),
-    (0.07932692307692307, 0.055288461538461536),
-    (0.07211538461538461, 0.1466346153846154),
-    (0.14903846153846154, 0.10817307692307693),
-    (0.14182692307692307, 0.2860576923076923)
-    ] #"""
+    ANCHORS_SmallObjects = [(10, 25), (15, 15), (25, 10), (25, 50), (35, 35), (50, 25)]
+"""
+ANCHORS_SmallObjects = [# obtained by normalizing over 512
+    (0.01953125, 0.04882812),
+    (0.02929688, 0.02929688),
+    (0.04882812, 0.01953125),
+    (0.04882812, 0.09765625),
+    (0.06835938, 0.06835938),
+    (0.09765625, 0.04882812)
+    ]
 
 
-class YoloLayer(nn.Module):
+class YoloLayer_SmallObjects(nn.Module):
     """
         YOLO Layer for handling detection at different scales.
     """
-    def __init__(self, scale, stride, num_classes, num_anchors_per_scale=3):
-        super(YoloLayer, self).__init__()
+    def __init__(self, scale, stride, num_classes=1, num_anchors_per_scale=3):
+        super(YoloLayer_SmallObjects, self).__init__()
         if scale == 's':
             idx = (0, 1, 2)
         elif scale == 'm':
@@ -278,7 +279,7 @@ class YoloLayer(nn.Module):
         self.num_classes = num_classes
         # num_attrib is 4 for the bbox coordinates, 1 for prediction score, and then classification scores for each class
         self.num_attrib = 4 + 1 + self.num_classes
-        self.anchors = torch.tensor([ANCHORS[i] for i in idx])
+        self.anchors = torch.tensor([ANCHORS_SmallObjects[i] for i in idx])
         self.stride = stride
         self.num_anchors_per_scale = num_anchors_per_scale
 
@@ -289,16 +290,6 @@ class YoloLayer(nn.Module):
         #print("GRID SIZE:", num_grid, "x", num_grid)
         if torch.isnan(x).any():
             print("NaNs found in raw output during training (head)")
-
-        #if self.training:
-        #    output_raw = x.view(num_batch,
-        #                        self.num_anchors_per_scale,
-        #                        self.num_attrib,
-        #                        num_grid,
-        #                        num_grid).permute(0, 1, 3, 4, 2).contiguous().view(num_batch, -1, self.num_attrib)
-        #    return output_raw
-        #else:
-        # Check for NaNs in the raw output
         
         prediction_raw = x.view(num_batch,
                                 self.num_anchors_per_scale,
@@ -315,8 +306,8 @@ class YoloLayer(nn.Module):
         anchor_h = self.anchors[:, 1:2].view((1, -1, 1, 1))
 
         # Get outputs
-        x_center_pred = (torch.sigmoid(prediction_raw[..., 0]) + grid_x) * self.stride / (512 + 1e-9) # Center x
-        y_center_pred = (torch.sigmoid(prediction_raw[..., 1]) + grid_y) * self.stride / (512 + 1e-9) # Center y
+        x_center_pred = (torch.sigmoid(prediction_raw[..., 0]) + grid_x) * self.stride / 512 # Center x
+        y_center_pred = (torch.sigmoid(prediction_raw[..., 1]) + grid_y) * self.stride / 512 # Center y
         w_pred = torch.exp(prediction_raw[..., 2]) * anchor_w  # Width
         h_pred = torch.exp(prediction_raw[..., 3]) * anchor_h  # Height
         bbox_pred = torch.stack((x_center_pred, y_center_pred, w_pred, h_pred), dim=4).view((num_batch, -1, 4)) #cxcywh
@@ -327,7 +318,7 @@ class YoloLayer(nn.Module):
         return output
 
 
-class DetectionBlock(nn.Module):
+class DetectionBlock_SmallObjects(nn.Module):
     """
     The DetectionBlock contains:
     Six ConvLayers, 1 Conv2D Layer and 1 YoloLayer.
@@ -339,7 +330,7 @@ class DetectionBlock(nn.Module):
     out_channels = n
     """
     def __init__(self, in_channels, out_channels, scale, stride, num_classes, num_anchors_per_scale=3):
-        super(DetectionBlock, self).__init__()
+        super(DetectionBlock_SmallObjects, self).__init__()
         assert out_channels % 2 == 0  #assert out_channels is an even number
         half_out_channels = out_channels // 2
         self.conv1 = ConvBnAct(in_channels, half_out_channels, kernel_size=1, activation=LeakyReLU)
@@ -349,7 +340,7 @@ class DetectionBlock(nn.Module):
         self.conv5 = ConvBnAct(out_channels, half_out_channels, kernel_size=1, activation=LeakyReLU)
         self.conv6 = ConvBnAct(half_out_channels, out_channels, kernel_size=3, activation=LeakyReLU)
         self.conv7 = nn.Conv2d(out_channels, (4+1+num_classes) * num_anchors_per_scale, kernel_size=1, bias=True)
-        self.yolo = YoloLayer(scale, stride, num_classes=num_classes)
+        self.yolo = YoloLayer_SmallObjects(scale, stride, num_classes=num_classes)
 
     def forward(self, x):
         tmp = self.conv1(x)
@@ -364,32 +355,7 @@ class DetectionBlock(nn.Module):
         return out
     
 
-class DetectionBlock_small(nn.Module):
-    """
-    A lighter version of DetectionBlock. 
-    """
-    def __init__(self, in_channels, out_channels, scale, stride, num_classes, num_anchors_per_scale=3):
-        super(DetectionBlock, self).__init__()
-        assert out_channels % 2 == 0  #assert out_channels is an even number
-        half_out_channels = out_channels // 2
-        self.conv1 = ConvBnAct(in_channels, half_out_channels, kernel_size=1, activation=LeakyReLU)
-        self.conv2 = ConvBnAct(half_out_channels, out_channels, kernel_size=3, activation=LeakyReLU)
-        self.conv3 = ConvBnAct(out_channels, half_out_channels, kernel_size=1, activation=LeakyReLU)
-        self.conv4 = ConvBnAct(half_out_channels, out_channels, kernel_size=3, activation=LeakyReLU)
-        self.conv7 = nn.Conv2d(out_channels, (4+1+num_classes) * num_anchors_per_scale, kernel_size=1, bias=True)
-        self.yolo = YoloLayer(scale, stride, num_classes=num_classes)
-
-    def forward(self, x):
-        tmp = self.conv1(x)
-        tmp = self.conv2(tmp)
-        self.branch = self.conv3(tmp)
-        tmp = self.conv4(self.branch)
-        tmp = self.conv7(tmp)
-        out = self.yolo(tmp)
-        return out
-
-
-class DetectionHeadYOLOv3(nn.Module): # Formerly YoloNetTail
+class DetectionHeadYOLOv3_SmallObjects(nn.Module):
     """
     The tail side of the YoloNet.
     In YOLOv3, it will take the result from DarkNet53BackBone and do some upsampling and concatenation.
@@ -399,41 +365,34 @@ class DetectionHeadYOLOv3(nn.Module): # Formerly YoloNetTail
         in2 = torch.randn((2, 512, IMAGE_SIZE//2, IMAGE_SIZE//2))
         in3 = torch.randn((2, 256, IMAGE_SIZE, IMAGE_SIZE))
     """
-    def __init__(self, num_classes=2):
+    def __init__(self, num_classes=1):
         super().__init__()
 
         config = configparser.ConfigParser()
         config.read('config.ini')
-        self.input_size = config.getint(section='DetectionHeadYOLOv3', option='image_size')
-        num_anchors_per_scale = config.getint(section='DetectionHeadYOLOv3', option='num_anchors_per_scale')
+        self.input_size = config.getint(section='DetectionHeadYOLOv3_SmallObjects', option='image_size')
+        num_anchors_per_scale = config.getint(section='DetectionHeadYOLOv3_SmallObjects', option='num_anchors_per_scale')
 
         self.num_classes = num_classes
-        self.detect1 = DetectionBlock(1024, 1024, 'm', 64, num_classes=self.num_classes, num_anchors_per_scale=num_anchors_per_scale)
-        self.conv1 = ConvBnAct(512, 256, 1, activation=LeakyReLU)
-        self.detect2 = DetectionBlock(768, 512, 's', 32, num_classes=self.num_classes, num_anchors_per_scale=num_anchors_per_scale)
-        self.conv2 = ConvBnAct(256, 128, 1, activation=LeakyReLU)
+        self.detect1 = DetectionBlock_SmallObjects(512, 512, 'm', 16, num_classes=self.num_classes, num_anchors_per_scale=num_anchors_per_scale)
+        self.conv1 = ConvBnAct(256, 128, 1, activation=LeakyReLU)
+        self.detect2 = DetectionBlock_SmallObjects(384, 256, 's', 8, num_classes=self.num_classes, num_anchors_per_scale=num_anchors_per_scale)
 
     def forward(self, inputs):
-        x1 = inputs[0]; x2 = inputs[1]; x3 = inputs[2]
-        #print("INPUTS: x1: ", x1.shape, "- x2: ", x2.shape, "- x3: ", x3.shape)
+        x1 = inputs[0]; x2 = inputs[1]
+        #print("INPUTS: x1: ", x1.shape, "- x2: ", x2.shape)
 
-        # Resizing input tensors to fit the canon YOLOv3
-        if x1.shape[2] > self.input_size//32: # for 32 stride
-            x1 = F.adaptive_avg_pool2d(x1, (self.input_size//32, self.input_size//32))
+        if x1.shape[2] > self.input_size//16: # for 16 stride
+            x1 = F.adaptive_avg_pool2d(x1, (self.input_size//16, self.input_size//16))
         else:
-            x1 = F.interpolate(x1, size=(self.input_size//32, self.input_size//32), mode='bilinear', align_corners=False) # for 32 stride
+            x1 = F.interpolate(x1, size=(self.input_size//16, self.input_size//16), mode='bilinear', align_corners=False) # for 32 stride
 
-        if x2.shape[2] > self.input_size//16: # for 16 stride
-            x2 = F.adaptive_avg_pool2d(x2, (self.input_size//16, self.input_size//16))
+        if x2.shape[2] > self.input_size//8: # for 8 stride
+            x2 = F.adaptive_avg_pool2d(x2, (self.input_size//8, self.input_size//8))
         else:
-            x2 = F.interpolate(x2, size=(self.input_size//16, self.input_size//16), mode='bilinear', align_corners=False) # for 32 stride
+            x2 = F.interpolate(x2, size=(self.input_size//8, self.input_size//8), mode='bilinear', align_corners=False) # for 32 stride
 
-        if x3.shape[2] > self.input_size//8: # for 8 stride
-            x3 = F.adaptive_avg_pool2d(x3, (self.input_size//8, self.input_size//8))
-        else:
-            x3 = F.interpolate(x3, size=(self.input_size//8, self.input_size//8), mode='bilinear', align_corners=False) # for 32 stride
-
-        #print("AFTER DOWNSCALE: x1: ", x1.shape, "- x2: ", x2.shape, "- x3: ", x3.shape)
+        #print("AFTER DOWNSCALE: x1: ", x1.shape, "- x2: ", x2.shape)
 
         out1 = self.detect1(x1)
         branch1 = self.detect1.branch
@@ -443,16 +402,10 @@ class DetectionHeadYOLOv3(nn.Module): # Formerly YoloNetTail
         tmp = F.interpolate(tmp, size=x2.shape[2:])
         tmp = torch.cat((tmp, x2), 1)
         out2 = self.detect2(tmp)
-        branch2 = self.detect2.branch
-        tmp = self.conv2(branch2)
-        
-        # Resize tmp to match the shape of x3, then concatenate
-        tmp = F.interpolate(tmp, size=x3.shape[2:])
-        tmp = torch.cat((tmp, x3), 1)
-        out3 = self.detect3(tmp)
 
-        #return out1, out2, out3
+        out = torch.cat((out1, out2), 1)
 
-        out = torch.cat((out1, out2, out3), 1)
+        print("out1: ", out1.shape, "- out2: ", out2.shape, "- out: ", out.shape)
         
         return out
+    

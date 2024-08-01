@@ -87,6 +87,11 @@ def generate_head_code(task, max_layers):
             head_type += f'u{outchannels_indexes[0]}'
             head_type += f'v{outchannels_indexes[1]}'
             head_type += f'w{outchannels_indexes[2]}'
+        if head_type == 'S':
+            outchannels_indexes = generate_even_numbers((max_layers*2)-1)
+            #head_type += f'u{outchannels_indexes[0]}' # for only 2 outchannels, and to keep the last as the last
+            head_type += f'u{outchannels_indexes[1]}'
+            head_type += f'v{outchannels_indexes[2]}'
     #elif task == 'S':
     #    print('Error gathering task when generating architecture code. Segmentation task is not yet implemented.')
     #    exit()

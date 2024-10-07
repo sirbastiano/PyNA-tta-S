@@ -5,8 +5,8 @@ convolution_layer_vocabulary = {
     'd': 'DenseNetBlock',
     'm': 'MBConv',
     'n': 'MBConvNoRes',
-    'o': 'CSPConvBlock',
-    'p': 'CSPMBConvBlock',
+    'O': 'CSPConvBlock',
+    'P': 'CSPMBConvBlock',
     'R': 'ResNetBlock',
 }
 

@@ -505,6 +505,7 @@ def compute_fitness_value_OD(parsed_layers, log_learning_rate=None, batch_size=N
     # Torch stuff
     seed = config.getint(section='Computation', option='seed')
     pl.seed_everything(seed=seed, workers=True)  # For reproducibility
+    torch.manual_seed(seed)
     torch.set_float32_matmul_precision("medium")  # to make lightning happy
     num_workers = config.getint(section='Computation', option='num_workers')
     accelerator = config.get(section='Computation', option='accelerator')
@@ -558,16 +559,19 @@ def compute_fitness_value_OD(parsed_layers, log_learning_rate=None, batch_size=N
             #del dm
             #torch.cuda.empty_cache()
             #gc.collect()
-            return -1e+20 # returning fitness of 0 if model is too deep
+            return 0 # returning fitness of 0 if model is too deep
+        
+        torch.autograd.set_detect_anomaly(True)
         
         trainer = pl.Trainer(
             accelerator=accelerator,
             min_epochs=1,
-            max_epochs=100,
+            max_epochs=10,#150
             fast_dev_run=False,
-            check_val_every_n_epoch=101,
-            #callbacks=[EarlyStopping(monitor="val_loss", mode="min", patience=3)],
-            callbacks=[classes.TrainEarlyStopping(monitor='train_loss', mode="min", patience=5)],
+            check_val_every_n_epoch=12,
+            #callbacks=[EarlyStopping(monitor="val_loss", mode="min", patience=15)],
+            #callbacks=[classes.TrainEarlyStopping(monitor='train_loss', mode="min", patience=5)],
+            #gradient_clip_val=1.0,
         )
 
         ## Tuner
@@ -607,17 +611,18 @@ def compute_fitness_value_OD(parsed_layers, log_learning_rate=None, batch_size=N
         inference_time = time.time() - inference_start_time
         '''
 
-        test_loss = results[0].get('test_loss')
-        if np.isnan(test_loss):
-            print("Test Loss is NaN")
-            #del model
-            #del dm
-            #torch.cuda.empty_cache()
-            #gc.collect()
-            return -1e+19 # returning fitness of 0 if model is too deep
+        #test_loss = results[0].get('test_loss')
+        #if np.isnan(test_loss):
+        #    print("Test Loss is NaN")
+        #    #del model
+        #    #del dm
+        #    #torch.cuda.empty_cache()
+        #    #gc.collect()
+        #    return 0 # returning fitness of 0 if model is too deep
         
-        num_param = sum(p.numel() for p in model.parameters())
-        fitness = -(test_loss)-(num_param/10000000)
+        #num_param = sum(p.numel() for p in model.parameters())
+        #fitness = -(test_loss)-(num_param/10000000)
+        fitness = results[0].get('test_SIoU')
 
         print(f"Fitness: {fitness}")
         print("********")
@@ -654,6 +659,8 @@ def compute_fitness_value_OD(parsed_layers, log_learning_rate=None, batch_size=N
             #gc.collect()
             return -1e+20 # returning fitness of 0 if model is too deep
         
+        torch.autograd.set_detect_anomaly(True)
+        
         trainer = pl.Trainer(
             accelerator=accelerator,
             min_epochs=1,
@@ -661,9 +668,10 @@ def compute_fitness_value_OD(parsed_layers, log_learning_rate=None, batch_size=N
             logger=logger,
             enable_checkpointing=True,
             #default_root_dir=checkpoints_path,
-            check_val_every_n_epoch=10,
-            callbacks=[EarlyStopping(monitor='val_loss', mode="min", patience=5)],
+            check_val_every_n_epoch=1,
+            callbacks=[EarlyStopping(monitor='val_loss', mode="min", patience=15)],
             #callbacks=[classes.TrainEarlyStopping(monitor='train_loss', mode="min", patience=5)],
+            #gradient_clip_val=1.0,
         )
 
         # Training
@@ -680,17 +688,21 @@ def compute_fitness_value_OD(parsed_layers, log_learning_rate=None, batch_size=N
         test_time = time.time() - test_start_time
         #inference_time = test_time/55
 
-        test_loss = results[0].get('test_loss')
-        if np.isnan(test_loss):
-            print("Test Loss is NaN")
-            #del model
-            #del dm
-            #torch.cuda.empty_cache()
-            #gc.collect()
-            return -1e+19 # returning fitness of 0 if model is too deep
+        #test_loss = results[0].get('test_loss')
+        #if np.isnan(test_loss):
+        #    print("Test Loss is NaN")
+        #    #del model
+        #    #del dm
+        #    #torch.cuda.empty_cache()
+        #    #gc.collect()
+        #    return 0 # returning fitness of 0 if model is too deep
         
-        num_param = sum(p.numel() for p in model.parameters())
-        fitness = -(test_loss)-(num_param/10000000)
+        #num_param = sum(p.numel() for p in model.parameters())
+        #fitness = -(test_loss)-(num_param/10000000)
+        fitness = results[0].get('test_SIoU')
+
+        print(f"Fitness: {fitness}")
+        print("********")
 
         print("FINAL RUN COMPLETED:")
         print(f"Fitness: {fitness}")

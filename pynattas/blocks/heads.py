@@ -250,9 +250,13 @@ class DetectionHeadYOLOv3(nn.Module): # Formerly YoloNetTail
 
 ###################################################################################################################################
 # YOLO Object Detection head, but smaller
+
 """
-    ANCHORS_SmallObjects = [(10, 25), (15, 15), (25, 10), (25, 50), (35, 35), (50, 25)]
+#ANCHORS_SmallObjects = [(10, 25), (15, 15), (25, 10), (25, 50), (35, 35), (50, 25)]
+ANCHORS_SmallObjects = [(19, 14), (22, 29), (27, 44), (30, 17), (45, 21), (73, 25)]
+    
 """
+'''
 ANCHORS_SmallObjects = [# obtained by normalizing over 512
     (0.01953125, 0.04882812),
     (0.02929688, 0.02929688),
@@ -261,7 +265,23 @@ ANCHORS_SmallObjects = [# obtained by normalizing over 512
     (0.06835938, 0.06835938),
     (0.09765625, 0.04882812)
     ]
+'''
 
+#Anchor Box 1: 18.81 x 14.03 with aspect ratio 1.41
+#Anchor Box 2: 21.75 x 28.86 with aspect ratio 0.77
+#Anchor Box 4: 29.78 x 16.55 with aspect ratio 1.89
+#Anchor Box 3: 27.00 x 44.23 with aspect ratio 0.62
+#Anchor Box 5: 45.17 x 21.15 with aspect ratio 2.25
+#Anchor Box 6: 72.67 x 24.50 with aspect ratio 3.15
+
+ANCHORS_SmallObjects = [# obtained by normalizing over 512
+    (0.03673828, 0.02740234),
+    (0.04248047, 0.05636719),
+    (0.05816406, 0.03232422),
+    (0.05273438, 0.08638672),
+    (0.08822266, 0.04130859),
+    (0.14193359, 0.04785156)
+]
 
 class YoloLayer_SmallObjects(nn.Module):
     """
@@ -284,10 +304,63 @@ class YoloLayer_SmallObjects(nn.Module):
         self.num_anchors_per_scale = num_anchors_per_scale
 
     def forward(self, x):
+        num_batch = x.size(0)
+        num_grid = x.size(2)
+        prediction_raw = x.view(
+            num_batch,
+            self.num_anchors_per_scale,
+            self.num_attrib,
+            num_grid,
+            num_grid
+        ).permute(0, 1, 3, 4, 2).contiguous()
+        
+        if self.training:
+            # During training, output raw predictions
+            #print("Model in training mode:")
+            return self.transform_predictions(prediction_raw, num_grid) # prediction_raw.view(num_batch, -1, self.num_attrib), 
+        else:
+            # During inference, apply transformations to get bounding box coordinates. Not implemented with the lightning module.
+            #print("Model in inference mode:")
+            return self.transform_predictions(prediction_raw, num_grid)
+
+    def transform_predictions(self, prediction_raw, num_grid):
+        # This method is used during inference
+        num_batch = prediction_raw.size(0)
+        device = prediction_raw.device
+
+        # Prepare anchors and grid
+        self.anchors = self.anchors.to(device).float()
+        grid_x, grid_y = self._create_grids(num_grid, device)
+        anchor_w = self.anchors[:, 0:1].view((1, -1, 1, 1))
+        anchor_h = self.anchors[:, 1:2].view((1, -1, 1, 1))
+
+        # Transform raw predictions to bounding box coordinates
+        x_center_pred = (torch.sigmoid(prediction_raw[..., 0]) + grid_x) * self.stride / 512  # Adjust as per your scaling
+        y_center_pred = (torch.sigmoid(prediction_raw[..., 1]) + grid_y) * self.stride / 512
+        w_pred = torch.exp(prediction_raw[..., 2]) * anchor_w
+        h_pred = torch.exp(prediction_raw[..., 3]) * anchor_h
+
+        bbox_pred = torch.stack(
+            (x_center_pred, y_center_pred, w_pred, h_pred), dim=4
+        ).view((num_batch, -1, 4))  # cxcywh
+        conf_pred = torch.sigmoid(prediction_raw[..., 4]).view(num_batch, -1, 1)
+        cls_pred = torch.sigmoid(prediction_raw[..., 5:]).view(num_batch, -1, self.num_classes)
+
+        output = torch.cat((bbox_pred, conf_pred, cls_pred), -1)
+        return output
+
+    def _create_grids(self, num_grid, device):
+        grid_tensor = torch.arange(num_grid, dtype=torch.float, device=device)
+        grid_x = grid_tensor.repeat(num_grid, 1).view([1, 1, num_grid, num_grid])
+        grid_y = grid_tensor.repeat(num_grid, 1).t().view([1, 1, num_grid, num_grid])
+        return grid_x, grid_y
+
+    '''def forward(self, x):
         #print("Shape of input to YOLO layer:", x.shape)
         num_batch = x.size(0)
         num_grid = x.size(2) # squared grid.
         #print("GRID SIZE:", num_grid, "x", num_grid)
+
         if torch.isnan(x).any():
             print("NaNs found in raw output during training (head)")
         
@@ -305,17 +378,23 @@ class YoloLayer_SmallObjects(nn.Module):
         anchor_w = self.anchors[:, 0:1].view((1, -1, 1, 1))
         anchor_h = self.anchors[:, 1:2].view((1, -1, 1, 1))
 
-        # Get outputs
-        x_center_pred = (torch.sigmoid(prediction_raw[..., 0]) + grid_x) * self.stride / 512 # Center x
-        y_center_pred = (torch.sigmoid(prediction_raw[..., 1]) + grid_y) * self.stride / 512 # Center y
-        w_pred = torch.exp(prediction_raw[..., 2]) * anchor_w  # Width
-        h_pred = torch.exp(prediction_raw[..., 3]) * anchor_h  # Height
-        bbox_pred = torch.stack((x_center_pred, y_center_pred, w_pred, h_pred), dim=4).view((num_batch, -1, 4)) #cxcywh
+        # Get outputs 
+        ## Old implementation with bbox coordinates being calculted from offsets in the head. Now moved to loss and post-processing.
+        #x_center_pred = (torch.sigmoid(prediction_raw[..., 0]) + grid_x) * self.stride / 512 # Center x
+        #y_center_pred = (torch.sigmoid(prediction_raw[..., 1]) + grid_y) * self.stride / 512 # Center y
+        #w_pred = torch.exp(prediction_raw[..., 2]) * anchor_w  # Width
+        #h_pred = torch.exp(prediction_raw[..., 3]) * anchor_h  # Height
+        #bbox_pred = torch.stack((x_center_pred, y_center_pred, w_pred, h_pred), dim=4).view((num_batch, -1, 4)) #cxcywh
+        x_center_raw = prediction_raw[..., 0]
+        y_center_raw = prediction_raw[..., 1]
+        w_raw = prediction_raw[..., 2]
+        h_raw = prediction_raw[..., 3]
+        bbox_pred = torch.stack((x_center_raw, y_center_raw, w_raw, h_raw), dim=4).view((num_batch, -1, 4))  # Raw predictions
         conf_pred = torch.sigmoid(prediction_raw[..., 4]).view(num_batch, -1, 1)  # Conf
         cls_pred = torch.sigmoid(prediction_raw[..., 5:]).view(num_batch, -1, self.num_classes)  # Cls pred one-hot.
 
         output = torch.cat((bbox_pred, conf_pred, cls_pred), -1)
-        return output
+        return output'''
 
 
 class DetectionBlock_SmallObjects(nn.Module):
@@ -405,7 +484,7 @@ class DetectionHeadYOLOv3_SmallObjects(nn.Module):
 
         out = torch.cat((out1, out2), 1)
 
-        print("out1: ", out1.shape, "- out2: ", out2.shape, "- out: ", out.shape)
+        #print("out1: ", out1.shape, "- out2: ", out2.shape, "- out: ", out.shape)
         
         return out
     

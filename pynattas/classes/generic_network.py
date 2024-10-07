@@ -75,15 +75,16 @@ class GenericNetwork(nn.Module):
         current_channels = input_channels
         current_height, current_width = input_height, input_width
 
+
         # Jumpstart layer
         self.jumpstart = convolutions.ConvAct(
-                    in_channels=current_channels,
-                    out_channels=32,
-                    kernel_size=3,
-                    stride=1,
-                    padding=1,
-                    activation=activations.LeakyReLU,
-                )
+            in_channels=current_channels,
+            out_channels=32,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            activation=activations.LeakyReLU,
+        )
         current_channels = 32
 
         # Layers proper
@@ -428,7 +429,11 @@ class GenericNetwork(nn.Module):
             raise ValueError(f"Unknown activation function: {activation}")
 
     def forward(self, x):
+        if torch.isnan(x).any():
+            print(f"NaNs found in the input!")
         x = self.jumpstart(x)
+        if torch.isnan(x).any():
+            print(f"NaNs found after the jumpstart layer")
         outchannel_tensors = []
         for layer_idx, layer in enumerate(self.layers):
 

@@ -8,6 +8,7 @@ import pytorch_lightning as pl
 from pycocotools.coco import COCO
 import torch
 import numpy as np
+from scipy.ndimage import median_filter
 
 
 def custom_collate_fn(batch):
@@ -52,6 +53,11 @@ class SPECTRE_COCO_Dataset(Dataset):
             image = src.read()  # Read the single channel
         
         image = image[0,:,:]
+        ## This is just a test: Apply the 3x3 median filter with padding=1
+        #image = median_filter(image, size=3, mode='constant', cval=0.0)  # 'constant' mode pads with zeros
+        ## This is just a test: I will normalize the image to [0, 1] and stretch it.
+        #image = (image - min(image.flatten())) / (max(image.flatten()) - min(image.flatten())) # Normalize to [0, 1]
+        ## end of test
 
         boxes = []
         labels = []
@@ -62,10 +68,10 @@ class SPECTRE_COCO_Dataset(Dataset):
             #ymax = ymin + ann['bbox'][3]
             #boxes.append([xmin, ymin, xmax, ymax])
             xmin, ymin, w, h = ann['bbox']
-            cx = (xmin + w / 2)/512
-            cy = (ymin + h / 2)/512
-            xmin /= 512
-            ymin /= 512
+            cx = (xmin + (w / 2))/512
+            cy = (ymin + (h / 2))/512
+            w /= 512
+            h /= 512
             boxes.append([cx, cy, w, h])
             labels.append(ann['category_id'])
 
@@ -81,9 +87,76 @@ class SPECTRE_COCO_Dataset(Dataset):
             image = self.transform(image)
 
         return image, target
-
+    
 
 class SPECTRE_COCO_DataModule(pl.LightningDataModule):
+    def __init__(self, img_dir, ann_dir, batch_size=4, num_workers=0, transform=None):
+        super().__init__()
+        self.img_dir = img_dir       # Base image directory
+        self.ann_dir = ann_dir       # Base annotation directory
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.transform = transform
+
+    def setup(self, stage=None):
+        # Define paths for each split
+        train_img_dir = os.path.join(self.img_dir, 'train')
+        val_img_dir = os.path.join(self.img_dir, 'val')
+        test_img_dir = os.path.join(self.img_dir, 'test')
+
+        train_ann_file = os.path.join(self.ann_dir, 'train.json')
+        val_ann_file = os.path.join(self.ann_dir, 'val.json')
+        test_ann_file = os.path.join(self.ann_dir, 'test.json')
+
+        # Create datasets for each split
+        self.train_dataset = SPECTRE_COCO_Dataset(
+            train_img_dir, train_ann_file, transform=self.transform
+        )
+        self.val_dataset = SPECTRE_COCO_Dataset(
+            val_img_dir, val_ann_file, transform=self.transform
+        )
+        self.test_dataset = SPECTRE_COCO_Dataset(
+            test_img_dir, test_ann_file, transform=self.transform
+        )
+
+    def train_dataloader(self):
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=self.num_workers,
+            collate_fn=custom_collate_fn
+        )
+
+    def val_dataloader(self):
+        return DataLoader(
+            self.val_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers,
+            collate_fn=custom_collate_fn
+        )
+
+    def test_dataloader(self):
+        return DataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers,
+            collate_fn=custom_collate_fn
+        )
+
+    def predict_dataloader(self):
+        return DataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers,
+            collate_fn=custom_collate_fn
+        )
+
+
+'''class SPECTRE_COCO_DataModule(pl.LightningDataModule):
     def __init__(self, img_dir, ann_file, batch_size=4, num_workers=0, transform=None):
         super().__init__()
         self.img_dir = img_dir
@@ -114,7 +187,4 @@ class SPECTRE_COCO_DataModule(pl.LightningDataModule):
     
     #@staticmethod
     #def collate_fn(batch):
-    #    return tuple(zip(*batch))
-    
-
-
+    #    return tuple(zip(*batch))'''

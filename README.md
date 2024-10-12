@@ -1,19 +1,36 @@
-# PyNA-tta-S
+# PyNAtaS
 
-![PyNA-tta-S](SRC/BG.png?raw=true)
+![GitHub stars](https://img.shields.io/github/stars/sirbastiano/PyNA-tta-S.svg)
+![GitHub forks](https://img.shields.io/github/forks/sirbastiano/PyNA-tta-S.svg)
+![GitHub issues](https://img.shields.io/github/issues/sirbastiano/PyNA-tta-S.svg)
+![GitHub license](https://img.shields.io/github/license/sirbastiano/PyNA-tta-S.svg)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/sirbastiano/PyNA-tta-S.svg)
+![GitHub last commit](https://img.shields.io/github/last-commit/sirbastiano/PyNA-tta-S.svg)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/sirbastiano/PyNA-tta-S/your-ci-workflow.yml)
+![GitHub code size](https://img.shields.io/github/languages/code-size/sirbastiano/PyNA-tta-S.svg)
+![GitHub language count](https://img.shields.io/github/languages/count/sirbastiano/PyNA-tta-S.svg)
+![GitHub top language](https://img.shields.io/github/languages/top/sirbastiano/PyNA-tta-S.svg)
+![GitHub repo size](https://img.shields.io/github/repo-size/sirbastiano/PyNA-tta-S.svg)
+![GitHub contributors](https://img.shields.io/github/contributors/sirbastiano/PyNA-tta-S.svg)
+![Open issues percentage](https://img.shields.io/github/issues/detail/state/sirbastiano/PyNA-tta-S/1.svg)
+
+
+<p align="center">
+    <img src="SRC/PyNAtaS.png?raw=true" alt="PyNA-tta-S" width="30%">
+</p>
 
 ## Overview
-PyNA-tta-S is the piñata package designed for onboard deployment optimization on edge devices. It leverages advanced metaheuristic optimization algorithms, including Genetic Algorithm (GA), Particle Swarm Optimization (PSO), and Grey Wolf Optimizer (GWO), to efficiently determine the most effective model architecture.
+PyNA-tta-S optimizes onboard deployment on edge devices using advanced metaheuristic algorithms like GA, PSO, and GWO.
 
 ## Key Features
-- Metaheuristic Algorithms: Incorporates GA, PSO, and GWO for robust optimization.
-- Model Architecture Selection: Automates the selection of optimal architectures for specific onboard applications.
-- Edge Device Compatibility: Tailored for efficient deployment on various edge devices.
-- Performance Metrics: Evaluates architectures based on predefined or custom metrics relevant to edge computing.
-## Customization: 
-Allows users to define custom constraints and requirements for model architecture.
-User-Friendly Interface: Easy-to-use API, facilitating integration with existing projects.
+- **Metaheuristic Algorithms**: GA, PSO, and GWO for robust optimization.
+- **Model Architecture Selection**: Automates optimal architecture selection.
+- **Edge Device Compatibility**: Efficient deployment on edge devices.
+- **Performance Metrics**: Evaluates based on predefined or custom metrics.
+- **Customization**: Define custom constraints and requirements.
+- **User-Friendly Interface**: Easy-to-use API for integration.
+
 ## Use Cases
-- IoT Applications: Optimizing models for IoT devices with limited computing resources.
-- Remote Sensing: Enhancing the efficiency of models deployed in remote sensing edge devices.
-- Autonomous Vehicles: Streamlining models for real-time processing in autonomous vehicles.
+- **IoT Applications**: Optimizing models for IoT devices.
+- **Remote Sensing**: Efficient models for remote sensing devices.
+- **Autonomous Vehicles**: Real-time processing models for autonomous vehicles.

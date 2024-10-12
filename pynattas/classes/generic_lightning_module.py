@@ -13,7 +13,44 @@ import math
 
 
 class GenericLightningNetwork(pl.LightningModule):
+
     def __init__(self, parsed_layers, input_channels, input_height, input_width, num_classes, learning_rate=1e-3):
+        """
+        A PyTorch Lightning Module for a generic neural network with various metrics and logging.
+        Args:
+            parsed_layers (list): List of parsed layers for the network.
+            input_channels (int): Number of input channels.
+            input_height (int): Height of the input images.
+            input_width (int): Width of the input images.
+            num_classes (int): Number of output classes.
+            learning_rate (float, optional): Learning rate for the optimizer. Default is 1e-3.
+        Attributes:
+            lr (float): Learning rate for the optimizer.
+            model (GenericNetwork): The neural network model.
+            loss_fn (nn.CrossEntropyLoss): Loss function.
+            accuracy (torchmetrics.classification.BinaryAccuracy): Accuracy metric.
+            f1_score (torchmetrics.classification.BinaryF1Score): F1 score metric.
+            mcc (torchmetrics.classification.matthews_corrcoef.BinaryMatthewsCorrCoef): Matthews correlation coefficient metric.
+            conf_matrix (torchmetrics.classification.BinaryConfusionMatrix): Confusion matrix for test data.
+            conf_matrix_pred (torchmetrics.classification.BinaryConfusionMatrix): Confusion matrix for prediction data.
+        Methods:
+            forward(x):
+                Forward pass through the network.
+            training_step(batch, batch_idx):
+                Training step for a single batch.
+            validation_step(batch, batch_idx):
+                Validation step for a single batch.
+            test_step(batch, batch_idx):
+                Test step for a single batch.
+            on_test_end():
+                Actions to perform at the end of the test phase, such as plotting and saving the confusion matrix.
+            _common_step(batch, batch_idx):
+                Common step for computing loss and scores.
+            predict_step(batch, batch_idx):
+                Prediction step for a single batch.
+            configure_optimizers():
+                Configures the optimizer for training.
+        """
         super(GenericLightningNetwork, self).__init__()
         self.lr = learning_rate
         self.model = GenericNetwork(

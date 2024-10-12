@@ -22,19 +22,14 @@ def safe_import(module_name, class_names):
         logger.error(f"Error importing {class_names} from {module_name}: {e}")
 
 # Network-related imports
-safe_import(".generic_lightning_module", [
+safe_import("pynattas.classes.generic_lightning_module", [
     "GenericLightningNetwork",
     "GenericLightningNetwork_Custom",
     "GenericOD_YOLOv3",
     "GenericOD_YOLOv3_SmallObjects"
 ])
 
-safe_import(".generic_network", ["GenericNetwork"])
+safe_import("pynattas.classes.generic_network", ["GenericNetwork"])
 
 # Early stopping imports
-safe_import(".my_early_stopping", ["EarlyStopping", "TrainEarlyStopping"])
-
-# Individual entities imports
-individual_entities = ["Individual", "Particle", "Wolf"]
-for entity in individual_entities:
-    safe_import(f".{entity.lower()}", [entity])
+safe_import("pynattas.classes.my_early_stopping", ["EarlyStopping", "TrainEarlyStopping"])

@@ -1,1 +1,1 @@
-from . import blocks, classes, functions, optimizers
+from pynattas import blocks, classes, functions, optimizers

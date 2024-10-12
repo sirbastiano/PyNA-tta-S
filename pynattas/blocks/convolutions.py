@@ -20,7 +20,8 @@ class ConvBnAct_old(nn.Sequential):
             nn.BatchNorm2d(num_features=out_channels),
             activation(),
         )
-    
+
+
 class ConvBnAct(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=None, activation=ReLU):
         super(ConvBnAct, self).__init__()
@@ -267,46 +268,3 @@ class ResNetBlockNB(nn.Module):
         x = self.main_path(x)
         x = torch.add(x, res)
         return x
-
-
-"""
-class ResNextBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, reduction_factor=4, cardinality=1, activation=ReLU):
-        super().__init__()
-        assert out_channels == in_channels
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.cardinality = cardinality
-
-        self.is_divisible = False
-        if in_channels % cardinality == 0:
-            self.is_divisible = True
-
-        # Works only with combinations with module 0
-        self.parallel_channels = self.in_channels // self.cardinality
-        self.parallel_paths = []
-        for path in range(self.cardinality):
-            path = ResNetBasicBlock(
-                in_channels=self.parallel_channels, 
-                out_channels=self.out_channels,
-                reduction_factor=reduction_factor,
-                activation=activation(),
-            )
-            self.parallel_paths.append(path)
-        
-
-    def forward(self, x):
-        res = x
-        paths_sum = torch.zeros_like(x)
-        if self.is_divisible:
-            i = 0
-            while i<self.in_channels:
-                path_channels = x[:][i:self.parallel_channels][:][:] # check se funziona.
-                path_channels = self.parallel_paths(i//self.cardinality)(path_channels)
-                paths_sum = torch.add(paths_sum, path_channels)
-                i += self.cardinality
-        else:
-            print("Cardinality was not divisible, using Identity instead of ResNextBlock.")
-        x = torch.add(paths_sum, res)
-        return x
-"""

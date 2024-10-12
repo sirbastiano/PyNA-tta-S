@@ -1,6 +1,6 @@
 import configparser
 import os
-from .. import configuration
+from pynattas import vocabulary
 
 
 # TODO: add functions for plotting the population at each iteration. Maybe add function to create the gif as well.
@@ -14,8 +14,8 @@ def generate_layers_search_space(parsed_layers):
         layer_type = layer['layer_type']
 
         # Get the parameters for the specific layer type
-        if layer_type in configuration.layer_parameters:
-            for param in configuration.layer_parameters[layer_type]:
+        if layer_type in vocabulary.layer_parameters:
+            for param in vocabulary.layer_parameters[layer_type]:
                 if param != 'activation' and param != 'num_blocks':
                     range_key = f"min_{param}", f"max_{param}"
                     param_key = f"{layer_type}_{index}_{param}"  # Unique key using layer type, index, and parameter name

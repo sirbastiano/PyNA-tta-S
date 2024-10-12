@@ -2,7 +2,7 @@ import random
 import configparser
 import logging
 from typing import List, Dict, Optional
-from .. import vocabulary
+from pynattas import vocabulary
 
 # Set up logging configuration
 logger = logging.getLogger(__name__)
@@ -252,3 +252,10 @@ def get_layer_type(segment_type_code: str, layer_type_code: str) -> str:
     """
     if segment_type_code == 'L':
         return
+
+
+
+
+
+if __name__ == '__main__':
+    print(generate_random_architecture_code(5, 'config.ini'))

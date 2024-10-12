@@ -8,7 +8,7 @@ from pynattas import vocabulary
 logger = logging.getLogger(__name__)
 
 # Constants
-ARCHITECTURE_ENDER = "E"
+ARCHITECTURE_ENDER = "|"
 
 
 def generate_random_architecture_code(max_layers: int, config_path: Optional[str] = 'config.ini') -> str:
@@ -251,7 +251,13 @@ def get_layer_type(segment_type_code: str, layer_type_code: str) -> str:
     str: Layer type.
     """
     if segment_type_code == 'L':
-        return
+        return vocabulary.convolution_layer_vocabulary[layer_type_code]
+    elif segment_type_code == 'P':
+        return vocabulary.pooling_layer_vocabulary[layer_type_code]
+    elif segment_type_code == 'H':
+        return vocabulary.head_vocabulary_C.get(layer_type_code, vocabulary.head_vocabulary_D.get(layer_type_code, 'Unknown'))
+    else:
+        raise ValueError(f"Unknown segment type code: {segment_type_code}")
 
 
 

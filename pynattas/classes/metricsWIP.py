@@ -88,25 +88,3 @@ def scale_boxes(boxes, img_size):
     boxes[:, 3] *= height
     return boxes
 
-
-'''
-import torch
-from metrics.mAP import MAPCalculator
-from pytorch_lightning import Trainer
-from my_test_datamodule import MyTestDataModule  # Replace with your actual DataModule
-
-# Load your trained model
-model = YourModel.load_from_checkpoint("path/to/your/checkpoint.ckpt")
-model.cuda()
-
-# Initialize the test datamodule
-test_dm = MyTestDataModule()
-test_dm.setup('test')
-
-# Create the mAP calculator instance
-map_calculator = MAPCalculator(model, test_dm.test_dataloader(), iou_threshold=0.5, conf_threshold=0.5)
-
-# Compute mAP
-mAP = map_calculator.compute_map()
-print(f"mAP@50: {mAP}")
-'''

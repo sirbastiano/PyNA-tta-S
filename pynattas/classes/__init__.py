@@ -1,37 +1,40 @@
-# Importing network-related classes
-try:
-    from .generic_lightning_module import (
-        GenericLightningNetwork,
-        GenericLightningNetwork_Custom,
-        GenericOD_YOLOv3,
-        GenericOD_YOLOv3_SmallObjects
-    )
-except ImportError as e:
-    print(f"Error importing from generic_lightning_module: {e}")
+import logging
 
-try:
-    from .generic_network import GenericNetwork
-except ImportError as e:
-    print(f"Error importing GenericNetwork: {e}")
+# Set up logging configuration for better debugging and control over message levels
+logging.basicConfig(level=logging.ERROR)
+logger = logging.getLogger(__name__)
 
-# Importing early stopping mechanisms
-try:
-    from .my_early_stopping import EarlyStopping, TrainEarlyStopping
-except ImportError as e:
-    print(f"Error importing from my_early_stopping: {e}")
+# Helper function to handle imports and log failures
+def safe_import(module_name, class_names):
+    """Attempts to import classes from a module and logs any ImportErrors.
+    
+    Parameters:
+    module_name (str): The name of the module from which to import.
+    class_names (list): A list of class names (as strings) to import from the module.
+    
+    Returns:
+    None
+    """
+    try:
+        module = __import__(module_name, globals(), locals(), class_names, 0)
+        globals().update({cls: getattr(module, cls) for cls in class_names})
+    except ImportError as e:
+        logger.error(f"Error importing {class_names} from {module_name}: {e}")
 
-# Importing individual entities
-try:
-    from .individual import Individual
-except ImportError as e:
-    print(f"Error importing Individual: {e}")
+# Network-related imports
+safe_import(".generic_lightning_module", [
+    "GenericLightningNetwork",
+    "GenericLightningNetwork_Custom",
+    "GenericOD_YOLOv3",
+    "GenericOD_YOLOv3_SmallObjects"
+])
 
-try:
-    from .particle import Particle
-except ImportError as e:
-    print(f"Error importing Particle: {e}")
+safe_import(".generic_network", ["GenericNetwork"])
 
-try:
-    from .wolf import Wolf
-except ImportError as e:
-    print(f"Error importing Wolf: {e}")
+# Early stopping imports
+safe_import(".my_early_stopping", ["EarlyStopping", "TrainEarlyStopping"])
+
+# Individual entities imports
+individual_entities = ["Individual", "Particle", "Wolf"]
+for entity in individual_entities:
+    safe_import(f".{entity.lower()}", [entity])

@@ -1,1 +1,2 @@
-In this folder should go the datahandling (data loading and data module) for the datasets in "..data". Two examples are provided.
+In this folder should go the datahandling (data loading and data module) 
+for the datasets in "..data". Two examples are provided.

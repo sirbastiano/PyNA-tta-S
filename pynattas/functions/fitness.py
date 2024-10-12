@@ -4,7 +4,7 @@ from torchvision import transforms
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import EarlyStopping
-#from pytorch.tuner import Tuner
+
 import configparser
 import os
 import time
@@ -13,10 +13,7 @@ from .. import classes
 import gc
 import numpy as np
 
-#from datasets.L0_thraws_classifier.dataset_weighted import SentinelDataset, SentinelDataModule
-#from datasets.coco128.dataset import COCODetectionDataModule
-from datasets.SPECTRE_prova.dataset import SPECTRE_COCO_DataModule
-#from datasets.wake_classifier.dataset import xAIWakesDataModule
+from datasets.generic.dataset import GenericDataModule 
 
 
 def compute_fitness_value(parsed_layers, log_learning_rate=None, batch_size=None, is_final=False):
@@ -60,28 +57,10 @@ def compute_fitness_value(parsed_layers, log_learning_rate=None, batch_size=None
     root_dir = config['Dataset']['data_path']
     num_classes = config.getint(section='Dataset', option='num_classes')
 
-    """
+
+    
     input_size = 256
-    composed_transform = transforms.Compose([
-        transforms.Resize((input_size, input_size)),
-        transforms.ToTensor(),
-        #transforms.Lambda(lambda x: x.view(-1, input_size, input_size))  # Reshaping to CxHxW
-    ])
-    dataset = SentinelDataset(
-        root_dir=root_dir,
-        transform=composed_transform,
-    )
-    image, label = dataset[0]  # Load one image from the dataset
-    in_channels = image.shape[0]  # Obtain the number of in channels. Height and Width are 256 x 256 due to transform
-    dm = SentinelDataModule(
-        root_dir=root_dir,
-        batch_size=round(float(bs)),
-        num_workers=num_workers,
-        transform=composed_transform,
-    )
-    """
-    input_size = 256
-    dm = xAIWakesDataModule(
+    dm = GenericDataModule(
         csv_file=csv_file,
         root_dir=root_dir,
         batch_size=round(float(bs)),
@@ -117,11 +96,6 @@ def compute_fitness_value(parsed_layers, log_learning_rate=None, batch_size=None
             callbacks=[classes.TrainEarlyStopping(monitor='train_loss', mode="min", patience=2)]
         )
 
-        ## Tuner
-        #tuner = Tuner(trainer)
-        #tuner.scale_batch_size(model, mode="binsearch")
-        #tuner.lr_find(model)
-
         # Training
         training_start_time = time.time()
         trainer.fit(model, dm)
@@ -133,25 +107,7 @@ def compute_fitness_value(parsed_layers, log_learning_rate=None, batch_size=None
         test_start_time = time.time()
         results = trainer.test(model, dm)
         test_time = time.time() - test_start_time
-        #inference_time = test_time/55
-
-        '''
-        # Inference
-        inference_start_time = time.time()
-        model = classes.GenericLightningNetwork(
-            parsed_layers=parsed_layers,
-            input_channels=in_channels,
-            #input_height=256,
-            #input_width=256,
-            num_classes=num_classes,
-            learning_rate=lr,
-        )
-        checkpoint = torch.load(rf"/media/warmachine/DBDISK/Andrea/DicDic/logs/tb_logs/checkpoints/OptimizedModel_2024-04-24_11-53-18/version_0/checkpoints/epoch=5-step=246.ckpt")
-        model.load_state_dict(checkpoint["state_dict"])
-        model.eval()       
-        inference_time = time.time() - inference_start_time
-        '''
-
+        
         acc = results[0].get('test_accuracy')
         f1 = results[0].get('test_f1_score')
         mcc = results[0].get('test_mcc') 

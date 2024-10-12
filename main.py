@@ -41,6 +41,7 @@ if __name__ == '__main__':
     if not nas_check and not ht_check:
         print("Error: No mode selected. Check config_optimizer.ini for verification.")
         exit()
+    
     task = config['Mode']['task']
     if task not in ['C','D']:
         print(f"Error: Selected Task {task} is not available. Check config_optimizer.ini for verification.")

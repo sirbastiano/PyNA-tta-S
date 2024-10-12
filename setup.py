@@ -5,14 +5,26 @@ https://github.com/pypa/sampleproject
 """
 
 # Always prefer setuptools over distutils
-from setuptools import setup
+from setuptools import setup, find_packages
+import os
+
+# Load README.md content as the long description
+def read_long_description():
+    """Reads the long description from the README.md file."""
+    try:
+        with open("README.md", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "Long description not available. Please refer to the GitHub repository."
 
 setup(
     name="pynattas",
-    version="v0.0.0",
-    description="Pynattas, a powerful open-source Python package"
-    + " that provides a comprehensive set of tools for model building and deployment",
-    long_description=open("README.md", encoding="cp437").read(),
+    version="0.1.0",  
+    description=(
+        "Pynattas, a powerful open-source Python package "
+        "that provides a comprehensive set of tools for model building and deployment"
+    ),
+    long_description=read_long_description(),
     long_description_content_type="text/markdown",
     url="https://github.com/sirbastiano/PyNA-tta-S",
     author="Roberto Del Prete and Andrea Mazzeo",
@@ -31,6 +43,17 @@ setup(
         "rasterio",
         "tifffile",
     ],
+    extras_require={
+        "dev": [
+            "pytest",
+            "black",
+            "flake8",
+        ],
+        "gpu": [
+            "torch==1.9.0+cu111",  # For GPU support with CUDA 11.1, adjust version as needed
+            "torchvision==0.10.0+cu111",
+        ],
+    },
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
@@ -40,7 +63,10 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Environment :: GPU :: NVIDIA CUDA :: 11.0",
     ],
-    packages=["pynattas", "pynattas.classes", "pynattas.functions", "pynattas.blocks", "pynattas.optimizers"],
+    packages=find_packages(exclude=["tests*"]),  # Automatically find all packages except tests
     python_requires=">=3.8, <4",
-    project_urls={"Source": "https://github.com/sirbastiano/PyNA-tta-S"},
+    include_package_data=True,  # Includes non-code files specified in MANIFEST.in
+    project_urls={
+        "Source": "https://github.com/sirbastiano/PyNA-tta-S",
+    },
 )

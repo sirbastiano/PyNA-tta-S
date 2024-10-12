@@ -1,244 +1,254 @@
 import random
 import configparser
-from .. import configuration
+import logging
+from typing import List, Dict, Optional
+from .. import vocabulary
+
+# Set up logging configuration
+logger = logging.getLogger(__name__)
+
+# Constants
+ARCHITECTURE_ENDER = "E"
 
 
-def generate_random_architecture_code(max_layers):
-    # Get task
-    config = configparser.ConfigParser()
-    config.read('config.ini')
-    task = config['Mode']['task']
+def generate_random_architecture_code(max_layers: int, config_path: Optional[str] = 'config.ini') -> str:
+    """
+    Generates a random architecture code with a variable number of layers, based on a specified task.
 
-    #architecture_code = "B"
-    architecture_code = ""
+    Parameters:
+    max_layers (int): Maximum number of layers for the architecture.
+    config_path (Optional[str]): Path to the configuration file (defaults to 'config.ini').
 
-    min_layers = 1
-    if task == 'D':
-        min_layers = 3
+    Returns:
+    str: Generated architecture code.
+    """
+    task = get_task_from_config(config_path)
 
-    encoder_layer_count = 0
-    for _ in range(random.randint(min_layers, max_layers)):
-        encoder_layer_count += 1
-        architecture_code += generate_layer_code()
-        architecture_code += "E"
-        architecture_code += generate_pooling_layer_code()
-        architecture_code += "E"
+    min_layers = 3 if task == 'D' else 1
+    encoder_layer_count = random.randint(min_layers, max_layers)
     
-    print(f"This architecture has {encoder_layer_count} encoder layers.")
-    architecture_code += generate_head_code(task, encoder_layer_count)
-    architecture_code += "E"
-
-    # Insert ender
-    architecture_code += "E"
+    # Generate architecture code
+    architecture_code = ''.join(
+        f"{generate_layer_code()}{ARCHITECTURE_ENDER}{generate_pooling_layer_code()}{ARCHITECTURE_ENDER}"
+        for _ in range(encoder_layer_count)
+    )
+    
+    logger.info(f"This architecture has {encoder_layer_count} encoder layers.")
+    
+    # Add head code and enders
+    architecture_code += f"{generate_head_code(task, encoder_layer_count)}{ARCHITECTURE_ENDER}"
+    architecture_code += ARCHITECTURE_ENDER
 
     return architecture_code
 
 
-def generate_layer_code():
-    layer_type = random.choice(list(configuration.convolution_layer_vocabulary.keys()))
-    parameters = configuration.layer_parameters[configuration.convolution_layer_vocabulary[layer_type]]
+def get_task_from_config(config_path: str = 'config.ini') -> str:
+    """
+    Reads the task type from the configuration file.
+
+    Parameters:
+    config_path (str): Path to the configuration file.
+
+    Returns:
+    str: Task type ('C' or 'D', or 'S'). [TODO: Add 'S' support]
+
+    Raises:
+    ValueError: If the task is not found or invalid.
+    """
+    config = configparser.ConfigParser()
+    try:
+        config.read(config_path)
+        task = config['Mode']['task']
+        if task not in ['C', 'D', 'S']:
+            raise ValueError(f"Invalid task '{task}' in configuration.")
+        return task
+    except (configparser.Error, KeyError) as e:
+        logger.error(f"Error reading task from config: {e}")
+        raise ValueError("Invalid configuration file or missing task information")
+
+
+def generate_layer_code() -> str:
+    """
+    Generates a random code for a convolutional layer based on the configuration.
+
+    Returns:
+    str: Generated layer code.
+    """
+    layer_type = random.choice(list(vocabulary.convolution_layer_vocabulary.keys()))
+    parameters = vocabulary.layer_parameters[vocabulary.convolution_layer_vocabulary[layer_type]]
     layer_code = f"L{layer_type}"
 
     config = configparser.ConfigParser()
     config.read('config.ini')
-    section = configuration.convolution_layer_vocabulary[layer_type]
+    section = vocabulary.convolution_layer_vocabulary[layer_type]
 
     for param in parameters:
         if param == 'activation':
-            # Randomly select an activation function
-            activation_code = random.choice(list(configuration.activation_functions_vocabulary.keys()))
+            activation_code = random.choice(list(vocabulary.activation_functions_vocabulary.keys()))
             layer_code += f"a{activation_code}"
         elif param == 'num_blocks':
-            # For now, n is always 1
-            continue
+            continue  # Skip num_blocks for now (always set to 1)
         else:
-            # Correctly fetch min and max values using getint
-            min_val = config.getint(section, 'min_' + param)
-            max_val = config.getint(section, 'max_' + param)
+            min_val = config.getint(section, f'min_{param}')
+            max_val = config.getint(section, f'max_{param}')
             value = random.randint(min_val, max_val)
+            layer_code += f"{vocabulary.parameter_vocabulary[param]}{value}"
 
-            code = configuration.parameter_vocabulary[param]
-            layer_code += f"{code}{str(value)}"
-
-    # Insert number of same blocks to concatenate before a pooling layer. Currently 1. For future developments.
+    # Default block count is 1 for now
     layer_code += "n1"
 
     return layer_code
 
 
-def generate_pooling_layer_code():
-    pooling_type = random.choice(list(configuration.pooling_layer_vocabulary.keys()))
+def generate_pooling_layer_code() -> str:
+    """
+    Generates a random code for a pooling layer based on the configuration.
+
+    Returns:
+    str: Generated pooling layer code.
+    """
+    pooling_type = random.choice(list(vocabulary.pooling_layer_vocabulary.keys()))
     return f"P{pooling_type}"
 
 
-def generate_head_code(task, max_layers):
-    if task not in ['C', 'D']:
-        print(f'Error gathering task when generating architecture code. {task} is not a valid task.')
-        exit()
+def generate_head_code(task: str, max_layers: int) -> str:
+    """
+    Generates the head code for the architecture based on the task.
 
+    Parameters:
+    task (str): The task type ('C' or 'D').
+    max_layers (int): Number of encoder layers.
+
+    Returns:
+    str: Generated head code.
+
+    Raises:
+    ValueError: If the task is invalid.
+    """
+    def add_outchannel_indices_to_head(head_type: str, max_layers: int) -> str:
+        """
+        Adds specific outchannel indices to the head code based on the task type 'D'.
+
+        Parameters:
+        head_type (str): The initial head type code.
+        max_layers (int): Number of encoder layers.
+
+        Returns:
+        str: Updated head code with outchannel indices.
+        """
+        if head_type in ['Y', 'S']:
+            outchannels_indexes = generate_even_numbers((max_layers * 2) - 1)
+            if head_type == 'Y':
+                head_type += f'u{outchannels_indexes[0]}v{outchannels_indexes[1]}w{outchannels_indexes[2]}'
+            elif head_type == 'S':
+                head_type += f'u{outchannels_indexes[1]}v{outchannels_indexes[2]}'
+        return head_type
+    
     if task == 'C':
-        head_type = random.choice(list(configuration.head_vocabulary_C.keys()))
+        head_type = random.choice(list(vocabulary.head_vocabulary_C.keys()))
     elif task == 'D':
-        head_type = random.choice(list(configuration.head_vocabulary_D.keys()))
-        #parameters = configuration.layer_parameters[configuration.convolution_layer_vocabulary[head_type]]
-        #for param in parameters:
-        if head_type == 'Y':
-            outchannels_indexes = generate_even_numbers((max_layers*2)-1)
-            head_type += f'u{outchannels_indexes[0]}'
-            head_type += f'v{outchannels_indexes[1]}'
-            head_type += f'w{outchannels_indexes[2]}'
-        if head_type == 'S':
-            outchannels_indexes = generate_even_numbers((max_layers*2)-1)
-            #head_type += f'u{outchannels_indexes[0]}' # for only 2 outchannels, and to keep the last as the last
-            head_type += f'u{outchannels_indexes[1]}'
-            head_type += f'v{outchannels_indexes[2]}'
-    #elif task == 'S':
-    #    print('Error gathering task when generating architecture code. Segmentation task is not yet implemented.')
-    #    exit()
+        head_type = random.choice(list(vocabulary.head_vocabulary_D.keys()))
+        head_type = add_outchannel_indices_to_head(head_type, max_layers)
+    else:
+        logger.error(f"Invalid task '{task}' for head code generation.")
+        raise ValueError(f"Task {task} is not supported for head code generation.")
     
     return f"H{head_type}"
 
 
-def generate_even_numbers(max_value):
+def generate_even_numbers(max_value: int) -> List[int]:
+    """
+    Generates a sorted list of three distinct even numbers within the range [0, max_value].
+
+    Parameters:
+    max_value (int): The upper limit for generating even numbers.
+
+    Returns:
+    List[int]: A list of three distinct even numbers.
+
+    Raises:
+    ValueError: If the max_value is less than 4 or there are not enough even numbers.
+    """
     if max_value < 4:
-        raise ValueError("The maximum value must be at least 4 to get three different even numbers.")
-
-    # Generate all possible even numbers within the range
+        raise ValueError("max_value must be at least 4 to generate three even numbers.")
+    
     even_numbers = [i for i in range(0, max_value + 1) if i % 2 == 0]
-    
     if len(even_numbers) < 3:
-        raise ValueError("Not enough even numbers in the range to choose from.")
-
-    # Ensure the largest even number is included
-    max_even = even_numbers[-1]
+        raise ValueError("Not enough even numbers to choose from.")
     
-    # Select 2 different even numbers from the list excluding the maximum even number
-    selected_numbers = random.sample(even_numbers[:-1], 2)
-    
-    # Add the largest even number to the list
-    selected_numbers.append(max_even)
-    
-    # Sort the numbers in increasing order
-    selected_numbers.sort()
-    
-    return selected_numbers
+    selected_numbers = random.sample(even_numbers[:-1], 2) + [even_numbers[-1]]
+    return sorted(selected_numbers)
 
 
-def parse_architecture_code(architecture_code):
-    # Get task
-    config = configparser.ConfigParser()
-    config.read('config.ini')
-    task = config['Mode']['task']
-    
-    segments = architecture_code.split('E')[:-1]
+def parse_architecture_code(architecture_code: str) -> List[Dict[str, str]]:
+    """
+    Parses the architecture code into a list of dictionaries representing the layers and their parameters.
+
+    Parameters:
+    architecture_code (str): The architecture code to be parsed.
+
+    Returns:
+    List[Dict[str, str]]: A list of parsed layers with their parameters.
+    """
+    segments = architecture_code.split(ARCHITECTURE_ENDER)[:-1] # Remove the last empty segment
     parsed_layers = []
 
     for segment in segments:
-        if not segment:  # Skip empty segments
-            continue
+        if not segment:
+            logger.warning("Empty segment found in architecture code.")
+            continue  # Skip empty segments
         
-        segment_type_code = segment[0]
-        layer_type_code = segment[1]
-        
-        # Determine the segment's layer type and corresponding parameters
-        if segment_type_code == 'L':
-            layer_type = configuration.convolution_layer_vocabulary.get(layer_type_code, "Unknown")
-            param_definitions = configuration.layer_parameters.get(layer_type, [])
-        elif segment_type_code == 'P':
-            layer_type = configuration.pooling_layer_vocabulary.get(layer_type_code, "Unknown")
-            param_definitions = configuration.layer_parameters.get(layer_type, [])
-        elif segment_type_code == 'H':
-            if task == 'C':
-                layer_type = configuration.head_vocabulary_C.get(layer_type_code, "Unknown")
-            elif task == 'D':
-                layer_type = configuration.head_vocabulary_D.get(layer_type_code, "Unknown")
-            else:
-                print(f'Error gathering task when generating architecture code. {task} is not a valid task.')
-                exit()
-            param_definitions = configuration.layer_parameters.get(layer_type, [])
-        
-        # Initialize the dictionary for this segment with its type
-        segment_info = {'layer_type': layer_type}
-        
-        # Process remaining characters based on the expected parameters for this type
-        params = segment[2:]  # All after layer type code
-        i = 0
-        
-        while i < len(params):
-            param_code = params[i]
-            i += 1
-            param_value_code = ""
-            
-            # Collect all consecutive digits for parameter value
-            while i < len(params) and params[i].isdigit():
-                param_value_code += params[i]
-                i += 1
-            
-            if not param_value_code:
-                if i < len(params):
-                    param_value_code = params[i]
-                    i += 1
-            
-            # Find the parameter name from the code
-            for param_name, code in configuration.parameter_vocabulary.items():
-                if code == param_code:
-                    # Add parameter to segment info, converting numeric values
-                    if param_value_code.isdigit():
-                        segment_info[param_name] = int(param_value_code)
-                    else:
-                        # Map activation codes to their respective names
-                        if param_name == 'activation':
-                            segment_info[param_name] = configuration.activation_functions_vocabulary.get(param_value_code, "Unknown")
-                        else:
-                            segment_info[param_name] = param_value_code
-                    break
-        
+        segment_info = parse_segment(segment)
         parsed_layers.append(segment_info)
 
     return parsed_layers
 
 
+def parse_segment(segment: str) -> Dict[str, str]:
+    """
+    Parses an individual segment of the architecture code.
 
-def generate_code_from_parsed_architecture(parsed_layers):
-    architecture_code = ""
+    Parameters:
+    segment (str): The architecture segment.
 
-    # Unify Head vocabularies
-    head_vocabulary = configuration.head_vocabulary_C | configuration.head_vocabulary_D
-    
-    # Utilize the provided configuration directly
-    reverse_convolution_layer_vocabulary = {v: k for k, v in configuration.convolution_layer_vocabulary.items()}
-    reverse_pooling_layer_vocabulary = {v: k for k, v in configuration.pooling_layer_vocabulary.items()}
-    reverse_head_vocabulary = {v: k for k, v in head_vocabulary.items()}
-    reverse_activation_functions_vocabulary = {v: k for k, v in configuration.activation_functions_vocabulary.items()}
+    Returns:
+    Dict[str, str]: Parsed segment details as a dictionary.
+    """
+    segment_type_code = segment[0]
+    layer_type_code = segment[1]
+    layer_type = get_layer_type(segment_type_code, layer_type_code)
 
-    for layer in parsed_layers:
-        layer_type = layer['layer_type']
-        segment_code = ""
-        
-        # Prepend the type code with "L", "P", or "H" based on the layer type
-        if layer_type in reverse_convolution_layer_vocabulary:
-            segment_code += "L" + reverse_convolution_layer_vocabulary[layer_type]
-        elif layer_type in reverse_pooling_layer_vocabulary:
-            segment_code += "P" + reverse_pooling_layer_vocabulary[layer_type]
-        elif layer_type in reverse_head_vocabulary:
-            segment_code += "H" + reverse_head_vocabulary[layer_type]
+    segment_info = {'layer_type': layer_type}
+    params = segment[2:]  # Parameters portion of the segment
 
-        # Append each parameter and its value
-        for param_name, param_value in layer.items():
-            if param_name == 'layer_type':  # Skip 'layer_type' as it's already processed
-                continue
-            
-            if param_name in configuration.parameter_vocabulary:
-                param_code = configuration.parameter_vocabulary[param_name]
-                
-                # Special handling for activation parameters
-                if param_name == 'activation':
-                    param_value = reverse_activation_functions_vocabulary.get(param_value, param_value)
-                
-                segment_code += param_code + str(param_value)
-        
-        # Finalize the segment and add it to the architecture code
-        architecture_code += segment_code + "E"
-    
-    # Ensure the architecture code properly ends with "EE"
-    return architecture_code + "E"
+    i = 0
+    while i < len(params):
+        param_code = params[i]
+        i += 1
+        param_value = ""
+
+        # Collect digits for parameter value
+        while i < len(params) and params[i].isdigit():
+            param_value += params[i]
+            i += 1
+
+        if param_code in vocabulary.parameter_vocabulary:
+            param_name = vocabulary.parameter_vocabulary[param_code]
+            segment_info[param_name] = int(param_value) if param_value.isdigit() else param_value
+
+    return segment_info
+
+
+def get_layer_type(segment_type_code: str, layer_type_code: str) -> str:
+    """
+    Returns the layer type based on segment type and layer type code.
+
+    Parameters:
+    segment_type_code (str): The segment type code ('L', 'P', 'H').
+    layer_type_code (str): The layer type code.
+
+    Returns:
+    str: Layer type.
+    """
+    if segment_type_code == 'L':
+        return

@@ -9,11 +9,11 @@ import configparser
 import os
 import time
 from datetime import datetime
-from .. import classes
 import gc
 import numpy as np
 
-from datasets.generic.dataset import GenericDataModule 
+from pynattas.builder.generic_lightning_module import GenericLightningNetwork
+from pynattas.datasets.generic.dataset import GenericDataModule 
 
 
 def compute_fitness_value(parsed_layers, log_learning_rate=None, batch_size=None, is_final=False):
@@ -75,7 +75,7 @@ def compute_fitness_value(parsed_layers, log_learning_rate=None, batch_size=None
 
     # MODEL
     if is_final == False:
-        model = classes.GenericLightningNetwork(
+        model = builder.GenericLightningNetwork(
             parsed_layers=parsed_layers,
             input_channels=in_channels,
             input_height=input_size,

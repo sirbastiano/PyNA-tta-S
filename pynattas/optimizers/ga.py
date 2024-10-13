@@ -3,8 +3,8 @@ import random
 import matplotlib.pyplot as plt
 import os
 import numpy as np
-from .. import classes
-from ..functions import *
+from pynattas import builder
+from pynattas.utils import layerCoder
 
 
 def single_point_crossover(parents):
@@ -57,9 +57,9 @@ def mutation(children, mutation_probability):
                 gene = child.chromosome[gene_index]
                 # Mutate based on the type of gene
                 if gene[0]=='L':  # Backbone layers
-                    child.chromosome[gene_index] = architecture_builder.generate_layer_code()
+                    child.chromosome[gene_index] = layerCoder.generate_layer_code()
                 elif gene[0]=='P': # Pooling layer gene
-                    child.chromosome[gene_index] = architecture_builder.generate_pooling_layer_code()
+                    child.chromosome[gene_index] = layerCoder.generate_pooling_layer_code()
                 elif gene[0]=='H': # Head gene
                     break
                 else:
@@ -143,7 +143,7 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
 
     print("Starting chromosome pool:")
     for i in population:
-        parsed_layers = architecture_builder.parse_architecture_code(i.architecture)
+        parsed_layers = layerCoder.parse_architecture_code(i.architecture)
         print(f"Architecture: {i.architecture}")
         print(f"Chromosome: {i.chromosome}")   
 
@@ -201,7 +201,7 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
         population = remove_duplicates(population=population, max_layers=max_layers)
 
         for i in population:
-            parsed_layers = architecture_builder.parse_architecture_code(i.architecture)
+            parsed_layers = layerCoder.parse_architecture_code(i.architecture)
             print(f"Architecture: {i.architecture}")
             print(f"Chromosome: {i.chromosome}")
             if task == 'D':

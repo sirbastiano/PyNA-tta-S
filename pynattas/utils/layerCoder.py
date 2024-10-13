@@ -11,35 +11,7 @@ logger = logging.getLogger(__name__)
 ARCHITECTURE_ENDER = "|"
 
 
-def generate_random_architecture_code(max_layers: int, config_path: Optional[str] = 'config.ini') -> str:
-    """
-    Generates a random architecture code with a variable number of layers, based on a specified task.
 
-    Parameters:
-    max_layers (int): Maximum number of layers for the architecture.
-    config_path (Optional[str]): Path to the configuration file (defaults to 'config.ini').
-
-    Returns:
-    str: Generated architecture code.
-    """
-    task = get_task_from_config(config_path)
-
-    min_layers = 3 if task == 'D' else 1
-    encoder_layer_count = random.randint(min_layers, max_layers)
-    
-    # Generate architecture code
-    architecture_code = ''.join(
-        f"{generate_layer_code()}{ARCHITECTURE_ENDER}{generate_pooling_layer_code()}{ARCHITECTURE_ENDER}"
-        for _ in range(encoder_layer_count)
-    )
-    
-    logger.info(f"This architecture has {encoder_layer_count} encoder layers.")
-    
-    # Add head code and enders
-    architecture_code += f"{generate_head_code(task, encoder_layer_count)}{ARCHITECTURE_ENDER}"
-    architecture_code += ARCHITECTURE_ENDER
-
-    return architecture_code
 
 
 def get_task_from_config(config_path: str = 'config.ini') -> str:
@@ -264,4 +236,4 @@ def get_layer_type(segment_type_code: str, layer_type_code: str) -> str:
 
 
 if __name__ == '__main__':
-    print(generate_random_architecture_code(5, 'config.ini'))
+    print(generate_random_architecture_code(15, 'config.ini'))

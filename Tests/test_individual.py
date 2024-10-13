@@ -1,6 +1,7 @@
 import pytest
 import logging
 from unittest.mock import patch
+
 from pynattas.builder.individual import Individual
 
 # Configure logging
@@ -86,7 +87,7 @@ def test_architecture2chromosome_empty():
 def test_chromosome2architecture():
     individual = Individual(max_layers=5)
     chromosome = ['L', 'P', 'L', 'P', 'L', 'P', 'HeadCode']
-    expected_architecture_code = 'LPLPLPHeadCodeEE'
+    expected_architecture_code = 'L|P|L|P|L|P|HeadCode||'
     
     logger.debug(f"Chromosome: {chromosome}")
     logger.debug(f"Expected architecture code: {expected_architecture_code}")
@@ -113,7 +114,7 @@ def test_chromosome2architecture_empty():
 
 def test_copy():
     individual = Individual(max_layers=5)
-    individual.architecture = 'LEPELEPEHeadCodeEE'
+    individual.architecture = 'L|P|L|P|HeadCode||'
     individual.chromosome = ['L', 'P', 'L', 'P', 'L', 'P', 'HeadCode']
     individual.fitness = 10.0
     

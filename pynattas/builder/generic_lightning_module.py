@@ -4,13 +4,13 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torchmetrics
 import pytorch_lightning as pl
-from .generic_network import GenericNetwork
 from datetime import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 import torchvision
 import math
 
+from pynattas.builder.generic_network import GenericNetwork
 
 class GenericLightningNetwork(pl.LightningModule):
 

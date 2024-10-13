@@ -1,6 +1,12 @@
 import random
 from pynattas.utils import layerCoder
 from typing import List, Optional
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 ENDER = layerCoder.ARCHITECTURE_ENDER
 
@@ -35,18 +41,17 @@ class Individual:
         
         # Generate architecture code
         architecture_code = ''.join(
-            f"{generate_layer_code()}{ENDER}{generate_pooling_layer_code()}{ENDER}"
+            f"{layerCoder.generate_layer_code()}{ENDER}{layerCoder.generate_pooling_layer_code()}{ENDER}"
             for _ in range(encoder_layer_count)
         )
         
         logger.info(f"This architecture has {encoder_layer_count} encoder layers.")
         
         # **** Add head code and enders ****
-        architecture_code += f"{generate_head_code(task, encoder_layer_count)}{ENDER}"
+        architecture_code += f"{layerCoder.generate_head_code(task, encoder_layer_count)}{ENDER}"
         architecture_code += ENDER
 
         return architecture_code
-
 
 
     def architecture2chromosome(self, input_architecture: str) -> List[str]:

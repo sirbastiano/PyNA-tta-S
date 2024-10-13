@@ -10,9 +10,9 @@ import numpy as np
 import torchvision
 import math
 
-from pynattas.builder.generic_network import GenericNetwork
+from pynattas.builder.netBuilder import GenericNetwork
 
-class GenericLightningNetwork(pl.LightningModule):
+class GenericTrainer(pl.LightningModule):
 
     def __init__(self, parsed_layers, input_channels, input_height, input_width, num_classes, learning_rate=1e-3):
         """

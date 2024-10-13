@@ -12,7 +12,7 @@ from datetime import datetime
 import gc
 import numpy as np
 
-from pynattas.builder.generic_lightning_module import GenericLightningNetwork
+from pynattas.builder.netBuilder import GenericNetwork
 from pynattas.datasets.generic.dataset import GenericDataModule 
 
 

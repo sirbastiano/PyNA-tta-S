@@ -30,6 +30,19 @@ class ClassificationHead(nn.Sequential):
         )
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 ###################################################################################################################################
 # YOLO Object Detection head, inpired by https://github.com/westerndigitalcorporation/YOLOv3-in-PyTorch/blob/release/src/model.py
 """ANCHORS = [(10, 13), (16, 30), (33, 23), (30, 61), (62, 45), (59, 119), (116, 90), (156, 198), (373, 326)]

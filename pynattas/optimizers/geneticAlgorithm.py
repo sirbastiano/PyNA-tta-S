@@ -3,9 +3,8 @@ import random
 import matplotlib.pyplot as plt
 import os
 import numpy as np
-from .. import classes
-from ..functions import *
-import concurrent.futures
+from pynattas.builder.individual import Individual
+from pynattas.utils import layerCoder, fitness
 
 
 def single_point_crossover(parents):
@@ -52,61 +51,26 @@ def mutation(children, mutation_probability):
     list: The mutated child chromosomes.
     """
     for child in children:
-        for gene_i in range(len(child.chromosome)):
+        for gene_index in range(len(child.chromosome)):
             rnd = random.random()
             if rnd <= mutation_probability:
-                gene = child.chromosome[gene_i]
+                gene = child.chromosome[gene_index]
                 # Mutate based on the type of gene
-                if len(gene) == 3:  # Triplet gene (convolutional layers)
-                    child.chromosome[gene_i] = architecture_builder.random_triplet_gene()
-                elif len(gene) == 1 and gene_i == len(child.chromosome) - 2:  # Pooling layer gene
-                    child.chromosome[gene_i] = architecture_builder.random_pooling_gene()
-                elif len(gene) == 1 and gene_i == len(child.chromosome) - 1:  # Head gene
-                    child.chromosome[gene_i] = architecture_builder.random_head_gene()
+                if gene[0]=='L':  # Backbone layers
+                    child.chromosome[gene_index] = layerCoder.generate_layer_code()
+                elif gene[0]=='P': # Pooling layer gene
+                    child.chromosome[gene_index] = layerCoder.generate_pooling_layer_code()
+                elif gene[0]=='H': # Head gene
+                    break
                 else:
                     print("Something went wrong with mutation.")
                     exit()
     return children
 
 
-def remove_duplicates(population, max_layers):
-    """
-    Remove duplicates from the population by replacing them with unique individuals.
-
-    Parameters:
-    population (list): A list of individuals in the population.
-    max_layers (int): The maximum number of layers for an individual.
-
-    Returns:
-    list: The updated population with duplicates removed.
-    """
-    unique_architectures = set()
-
-    for individual in population:
-        # Check if the architecture is already in the set
-        if individual.architecture in unique_architectures:
-            # Create a new unique individual if a duplicate is found
-            # Make new individuals until a new one is found. t added to avoid an infinite loop
-            new_individual = None
-            t = 0
-            while new_individual is None or new_individual.architecture in unique_architectures or t == 50:
-                new_individual = classes.Individual(max_layers)
-                t = t + 1
-
-            # Replace the duplicate individual with the new unique individual
-            individual.architecture = new_individual.architecture
-            individual.chromosome = new_individual.chromosome
-            individual.fitness = 0.0
-        else:
-            # Add the architecture to the set of unique architectures
-            unique_architectures.add(individual.architecture)
-
-    return population
 
 
-
-
-def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutation_probability, logs_directory):
+def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutation_probability, logs_directory, task):
     """
     Genetic Algorithm optimizer for architecture search.
 
@@ -123,18 +87,10 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
     """
 
     # Sanity checks
-    if max_layers < 1:
-        print("Error: Max layers should be bigger than 0.")
-        exit()
-    elif n_individuals % 2 == 1:
-        print("ERROR: population_size should be an even number.")
-        exit()
-    elif mating_pool_cutoff > 1.0:
-        print("ERROR: mating_pool_cutoff should be less than 1.")
-        exit()
-    elif mutation_probability > 1.0:
-        print("ERROR: mutation_probability should be less than 1.")
-        exit()
+    assert max_layers > 0, "Error: Max layers should be bigger than 0."
+    assert n_individuals % 2 == 0, "ERROR: population_size should be an even number."
+    assert mating_pool_cutoff <= 1.0, "ERROR: mating_pool_cutoff should be less than or equal to 1."
+    assert mutation_probability <= 1.0, "ERROR: mutation_probability should be less than or equal to 1."
 
     # Logging initialization
     mean_fitness_vector = np.zeros(shape=(max_iter + 1))
@@ -144,34 +100,30 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
     # Population Initialization
     population = []
     for i in range(n_individuals):
-        temp_individual = classes.Individual(max_layers=max_layers)
+        temp_individual = Individual(max_layers=max_layers)
         population.append(temp_individual)
 
     population = remove_duplicates(population=population, max_layers=max_layers)
 
     print("Starting chromosome pool:")
-    # Parallel Fitness Evaluation
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = [executor.submit(
-            fitness.compute_fitness_value,
-            position=[],
-            keys=[],
-            architecture=utils.parse_architecture_code(i.architecture),
-        ) for i in population]
-        for i, future in enumerate(concurrent.futures.as_completed(futures)):
-            population[i].fitness = future.result()
-    
     for i in population:
-        print(f"Individual {i}")
-        print(f"chromosome: {i.chromosome}")
-        print(f"fitness: {i.fitness}\n")
+        parsed_layers = layerCoder.parse_architecture_code(i.architecture)
+        print(f"Architecture: {i.architecture}")
+        print(f"Chromosome: {i.chromosome}")   
+
+        if task == 'D':
+            i.fitness = fitness.compute_fitness_value_OD(parsed_layers=parsed_layers)
+        else:
+            i.fitness = fitness.compute_fitness_value(parsed_layers=parsed_layers)
+        
+        print(f"chromosome: {i.chromosome}, fitness: {i.fitness}\n")
 
     # Starting population update
     population = sorted(population, key=lambda temp: temp.fitness, reverse=True)
     historical_best_fitness = population[0].fitness
     fittest_individual = population[0].architecture
     fittest_genes = population[0].chromosome
-    mean_fitness_vector[0], median_fitness_vector[0] =utils.calculate_statistics(population, attribute='fitness')
+    mean_fitness_vector[0], median_fitness_vector[0] = utils.calculate_statistics(population, attribute='fitness')
     best_fitness_vector[0] = historical_best_fitness
 
     utils.show_population(
@@ -191,7 +143,7 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
         # Create a mating pool
         mating_pool = population[:int(np.floor(mating_pool_cutoff * len(population)))].copy()
         for i in range(int(np.ceil((1 - mating_pool_cutoff) * len(population)))):
-            temp_individual = classes.Individual(max_layers=max_layers)
+            temp_individual = Individual(max_layers=max_layers)
             mating_pool.append(temp_individual)
 
         # Coupling and mating
@@ -212,20 +164,15 @@ def ga_optimizer(max_layers, max_iter, n_individuals, mating_pool_cutoff, mutati
             i.architecture = i.chromosome2architecture(i.chromosome)
         population = remove_duplicates(population=population, max_layers=max_layers)
 
-        # Parallel Fitness Evaluation in Each Generation
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = [executor.submit(
-                fitness.compute_fitness_value,
-                position=[],
-                keys=[],
-                architecture=utils.parse_architecture_code(i.architecture),
-            ) for i in population]
-            for i, future in enumerate(concurrent.futures.as_completed(futures)):
-                population[i].fitness = future.result()
-
         for i in population:
-            print("position", i.chromosome)
-            print("fitness:", i.fitness, "\n")
+            parsed_layers = layerCoder.parse_architecture_code(i.architecture)
+            print(f"Architecture: {i.architecture}")
+            print(f"Chromosome: {i.chromosome}")
+            if task == 'D':
+                i.fitness = fitness.compute_fitness_value_OD(parsed_layers=parsed_layers)
+            else:
+                i.fitness = fitness.compute_fitness_value(parsed_layers=parsed_layers)
+            print(f"chromosome: {i.chromosome}, fitness: {i.fitness}\n")
 
         # Update historical best
         population = sorted(population, key=lambda temp: temp.fitness, reverse=True)

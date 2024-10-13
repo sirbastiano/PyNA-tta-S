@@ -12,6 +12,7 @@ class Population:
         max_layers (int): Maximum number of layers for the architecture.
         n_individuals (int): Number of individuals in the population.
         """
+        self.iteration = 0 # Current iteration number
         self.population = []
         for i in range(n_individuals):
             temp_individual = Individual(max_layers=max_layers)
@@ -50,9 +51,24 @@ class Population:
             temp_individual = Individual(max_layers=max_layers)
             if temp_individual.architecture not in [i.architecture for i in self.population]:
                 self.population.append(temp_individual)
+                
+                
+    def store(self, generation: int, logs_directory: str):
+        """
+        Stores the population in a file for the current generation, including fitness values.
+        
+        Parameters:
+        generation (int): The current generation number.
+        logs_directory (str): The directory for log and plot files.
+        """
+        with open(f"{logs_directory}/population_{generation}.txt", 'w') as file:
+            for individual in self.population:
+                file.write(f"Architecture: {individual.architecture}, Fitness: {individual.fitness}\n")
 
 if __name__ == '__main__':
     pop = Population(max_layers=5, n_individuals=10)
     print(len(pop.population))
     for idx, guy in enumerate(pop.population):
         print(idx, guy.architecture)
+        
+    pop.store(generation=0, logs_directory='logs/GA_logs')

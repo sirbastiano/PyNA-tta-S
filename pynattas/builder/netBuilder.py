@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
-from ..blocks import *
 import configparser
+
+from ..blocks import *
 
 
 class GenericNetwork(nn.Module):
@@ -51,11 +52,18 @@ class GenericNetwork(nn.Module):
             input_channels: int, 
             input_height: int, 
             input_width: int, 
-            num_classes: int, 
+            num_classes: int,
+            features_only: bool = False, 
             ):
         super(GenericNetwork, self).__init__()
-        self.layers = nn.ModuleList()
         
+        self.features_only = features_only
+        
+        self.is_too_deep = False # Flag to indicate if the network is too deep
+        self._jumpstart_channels = 32
+        
+        self.layers = nn.ModuleList()
+        # TODO: Change the logics here to be more dynamic
         if parsed_layers[-1]['layer_type'] == 'DetectionHeadYOLOv3':
             self.outchannels = [
                 parsed_layers[-1]['outchannel1_index'],
@@ -68,25 +76,28 @@ class GenericNetwork(nn.Module):
                 parsed_layers[-1]['outchannel2_index'],
             ]
         self.outchannels_size = []
-        self.is_too_deep = False
 
+    # TODO: Parsed layers must be obtained inside this GenericNetwork class
+
+
+
+    # TODO: Change builder to separate sections for heads
+    def build(self, parsed_layers, input_channels, input_height, input_width, num_classes):
         config = configparser.ConfigParser()
         config.read('config.ini')
 
-        current_channels = input_channels
-        current_height, current_width = input_height, input_width
-
-
+        current_channels, current_height, current_width = input_channels, input_height, input_width
+        
         # Jumpstart layer
         self.jumpstart = convolutions.ConvAct(
-            in_channels=current_channels,
-            out_channels=32,
+            in_channels=input_channels,
+            out_channels=self._jumpstart_channels,
             kernel_size=1,
             stride=1,
             padding=0,
             activation=activations.LeakyReLU,
         )
-        current_channels = 32
+        current_channels = self._jumpstart_channels
 
         # Layers proper
         for layer_idx,layer in enumerate(parsed_layers):
@@ -407,16 +418,13 @@ class GenericNetwork(nn.Module):
             else:
                 raise ValueError(f"Unknown layer type: {layer_type}")
             
-            if layer_idx in self.outchannels:
-                self.outchannels_size.append(current_channels)
-
             self.layers.append(layer)
 
             if current_height == 1 or current_width == 1:
                 self.is_too_deep = True
                 break
 
-        
+
     @staticmethod
     def get_activation_fn(activation=activations.GELU):
         if activation == 'ReLU':
@@ -448,18 +456,6 @@ class GenericNetwork(nn.Module):
                 # Flatten the output before feeding it into the ClassificationHead
                 x = x.view(x.size(0), -1)
 
-            # if isinstance(layer, heads.DetectionHeadYOLOv3):
-            #     # Change the shapes of the outchannels before feeding them into the DetectionHeadYOLOv3
-            #     outchannel_tensors[2] = self.yolo_conv_l(outchannel_tensors[2])
-            #     outchannel_tensors[1] = self.yolo_conv_m(outchannel_tensors[1])
-            #     outchannel_tensors[0] = self.yolo_conv_s(outchannel_tensors[0])
-            #     return layer(outchannel_tensors[::-1]) # Reverse the output layers to have the deeper ones be first
-            
-            # if isinstance(layer, heads.DetectionHeadYOLOv3_SmallObjects):
-            #     # Change the shapes of the outchannels before feeding them into the DetectionHeadYOLOv3
-            #     outchannel_tensors[1] = self.yolo_conv_m(outchannel_tensors[1])
-            #     outchannel_tensors[0] = self.yolo_conv_s(outchannel_tensors[0])
-            #     return layer(outchannel_tensors[::-1]) # Reverse the output layers to have the deeper ones be first
 
             x = layer(x)
 

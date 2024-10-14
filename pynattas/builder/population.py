@@ -51,8 +51,8 @@ class Population:
             temp_individual = Individual(max_layers=max_layers)
             if temp_individual.architecture not in [i.architecture for i in self.population]:
                 self.population.append(temp_individual)
-                
-                
+    
+    
     def store(self, generation: int, logs_directory: str):
         """
         Stores the population in a file for the current generation, including fitness values.

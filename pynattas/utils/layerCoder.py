@@ -3,6 +3,7 @@ import configparser
 import logging
 from typing import List, Dict, Optional
 from pynattas import vocabulary
+import re
 
 # Set up logging configuration
 logger = logging.getLogger(__name__)
@@ -188,25 +189,21 @@ def parse_segment(segment: str) -> Dict[str, str]:
     """
     segment_type_code = segment[0]
     layer_type_code = segment[1]
-    layer_type = get_layer_type(segment_type_code, layer_type_code)
+    segment_info = {'layer_type': get_layer_type(segment_type_code, layer_type_code)}
+    
+    if segment_type_code == 'L':
+        params = segment[2:]
+        param_pairs = re.findall(r'[a-zA-Z]+[0-9]*', params)
 
-    segment_info = {'layer_type': layer_type}
-    params = segment[2:]  # Parameters portion of the segment
+        for pair in param_pairs:
+            # TODO: Handle num repeats.
+            if pair.startswith('a'):
+                key_value_pairs = [(pair[0], vocabulary.activation_functions_vocabulary[pair[1]]), (pair[2], pair[3])]
+            else:
+                key_value_pairs = [(pair[0], pair[1:])]
 
-    i = 0
-    while i < len(params):
-        param_code = params[i]
-        i += 1
-        param_value = ""
+            segment_info.update({vocabulary.parameter_vocabulary_rev[key]: value for key, value in key_value_pairs})
 
-        # Collect digits for parameter value
-        while i < len(params) and params[i].isdigit():
-            param_value += params[i]
-            i += 1
-
-        if param_code in vocabulary.parameter_vocabulary:
-            param_name = vocabulary.parameter_vocabulary[param_code]
-            segment_info[param_name] = int(param_value) if param_value.isdigit() else param_value
 
     return segment_info
 

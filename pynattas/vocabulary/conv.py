@@ -27,3 +27,6 @@ parameter_vocabulary = {
     'outchannel2_index': 'v',
     'outchannel3_index': 'w',
 }
+
+# Reverted vocabulary mapping short codes back to full parameter names
+parameter_vocabulary_rev = {v: k for k, v in parameter_vocabulary.items()}

@@ -55,6 +55,7 @@ class GenericNetwork(nn.Module):
             ):
         super(GenericNetwork, self).__init__()
         self.layers = nn.ModuleList()
+        
         if parsed_layers[-1]['layer_type'] == 'DetectionHeadYOLOv3':
             self.outchannels = [
                 parsed_layers[-1]['outchannel1_index'],
@@ -431,9 +432,11 @@ class GenericNetwork(nn.Module):
     def forward(self, x):
         if torch.isnan(x).any():
             print(f"NaNs found in the input!")
+        
         x = self.jumpstart(x)
         if torch.isnan(x).any():
             print(f"NaNs found after the jumpstart layer")
+        
         outchannel_tensors = []
         for layer_idx, layer in enumerate(self.layers):
 
@@ -445,18 +448,18 @@ class GenericNetwork(nn.Module):
                 # Flatten the output before feeding it into the ClassificationHead
                 x = x.view(x.size(0), -1)
 
-            if isinstance(layer, heads.DetectionHeadYOLOv3):
-                # Change the shapes of the outchannels before feeding them into the DetectionHeadYOLOv3
-                outchannel_tensors[2] = self.yolo_conv_l(outchannel_tensors[2])
-                outchannel_tensors[1] = self.yolo_conv_m(outchannel_tensors[1])
-                outchannel_tensors[0] = self.yolo_conv_s(outchannel_tensors[0])
-                return layer(outchannel_tensors[::-1]) # Reverse the output layers to have the deeper ones be first
+            # if isinstance(layer, heads.DetectionHeadYOLOv3):
+            #     # Change the shapes of the outchannels before feeding them into the DetectionHeadYOLOv3
+            #     outchannel_tensors[2] = self.yolo_conv_l(outchannel_tensors[2])
+            #     outchannel_tensors[1] = self.yolo_conv_m(outchannel_tensors[1])
+            #     outchannel_tensors[0] = self.yolo_conv_s(outchannel_tensors[0])
+            #     return layer(outchannel_tensors[::-1]) # Reverse the output layers to have the deeper ones be first
             
-            if isinstance(layer, heads.DetectionHeadYOLOv3_SmallObjects):
-                # Change the shapes of the outchannels before feeding them into the DetectionHeadYOLOv3
-                outchannel_tensors[1] = self.yolo_conv_m(outchannel_tensors[1])
-                outchannel_tensors[0] = self.yolo_conv_s(outchannel_tensors[0])
-                return layer(outchannel_tensors[::-1]) # Reverse the output layers to have the deeper ones be first
+            # if isinstance(layer, heads.DetectionHeadYOLOv3_SmallObjects):
+            #     # Change the shapes of the outchannels before feeding them into the DetectionHeadYOLOv3
+            #     outchannel_tensors[1] = self.yolo_conv_m(outchannel_tensors[1])
+            #     outchannel_tensors[0] = self.yolo_conv_s(outchannel_tensors[0])
+            #     return layer(outchannel_tensors[::-1]) # Reverse the output layers to have the deeper ones be first
 
             x = layer(x)
 

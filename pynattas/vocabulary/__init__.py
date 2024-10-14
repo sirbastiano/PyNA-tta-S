@@ -6,7 +6,7 @@ from pynattas.vocabulary.layers import (
 )
 
 
-from pynattas.vocabulary.conv import parameter_vocabulary
+from pynattas.vocabulary.conv import parameter_vocabulary, parameter_vocabulary_rev
 
 from pynattas.vocabulary.layers import (
     head_vocabulary_C,

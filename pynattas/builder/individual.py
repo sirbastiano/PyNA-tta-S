@@ -2,6 +2,7 @@ import random
 from pynattas.utils import layerCoder
 from typing import List, Optional
 import logging
+import configparser
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -34,9 +35,12 @@ class Individual:
         Returns:
         str: Generated architecture code.
         """
+        # Read configuration file
+        config = configparser.ConfigParser()
+        config.read(config_path)
         task = layerCoder.get_task_from_config(config_path)
 
-        min_layers = 3 if task == 'D' else 1
+        min_layers = 3 if task == 'D' else config.getint('GeneralNetwork', 'min_layers')
         encoder_layer_count = random.randint(min_layers, max_layers)
         
         # Generate architecture code

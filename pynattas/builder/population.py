@@ -1,4 +1,5 @@
 from pynattas.builder.individual import Individual
+from pynattas.builder.netBuilder import GenericNetwork
 
 
 class Population:
@@ -38,6 +39,7 @@ class Population:
             if individual.architecture not in [i.architecture for i in unique_population]:
                 unique_population.append(individual)
         return unique_population
+    
     
     def ensure_population_size(self, n_individuals: int, max_layers: int):
         """

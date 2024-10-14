@@ -73,14 +73,26 @@ def generate_layer_code() -> str:
     return layer_code
 
 
-def generate_pooling_layer_code() -> str:
+def generate_pooling_layer_code(probabilities: dict =  {'a': 0.25, 'M': 0.25, 'I': 0.5}) -> str:
     """
-    Generates a random code for a pooling layer based on the configuration.
+    Generates a random code for a pooling layer based on a given probability distribution.
+
+    Parameters:
+    probabilities (dict): A dictionary where the keys represent pooling layer types 
+    (e.g., 'a', 'M', 'I') and the values are the probabilities 
+    associated with each layer type. The probabilities should sum to 1.
 
     Returns:
-    str: Generated pooling layer code.
+    str: Generated pooling layer code corresponding to the chosen pooling type.
     """
-    pooling_type = random.choice(list(vocabulary.pooling_layer_vocabulary.keys()))
+    # Extracting the layer types and their corresponding probabilities
+    layers = list(probabilities.keys())
+    weights = list(probabilities.values())
+
+    # Randomly selecting a pooling type based on the provided probabilities
+    pooling_type = random.choices(layers, weights=weights, k=1)[0]
+
+    # Returning the corresponding pooling layer code
     return f"P{pooling_type}"
 
 

@@ -36,6 +36,7 @@ setup(
         "torch",
         "torchvision",
         "torchmetrics",
+        "torchsummary",
         "pytorch-lightning",
         "tqdm",
         "matplotlib",

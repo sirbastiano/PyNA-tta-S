@@ -1,8 +1,12 @@
 import torch
 import torch.nn as nn
 import configparser
+import torchsummary
 
 from ..blocks import *
+from .logics import layer_torcher
+from pynattas.utils import layerCoder
+from tqdm import tqdm
 
 
 class GenericNetwork(nn.Module):
@@ -48,7 +52,7 @@ class GenericNetwork(nn.Module):
 
     def __init__(
             self, 
-            parsed_layers, 
+            architecture_code: str, 
             input_channels: int, 
             input_height: int, 
             input_width: int, 
@@ -56,410 +60,136 @@ class GenericNetwork(nn.Module):
             features_only: bool = False, 
             ):
         super(GenericNetwork, self).__init__()
+        self.config = configparser.ConfigParser()
+        self.config.read('config.ini')
         
+        self.parsed_layers = layerCoder.parse_architecture_code(architecture_code)
+        self.num_classes = num_classes
+        self.input_channels = input_channels
+        self.input_height = input_height
+        self.input_width = input_width
         self.features_only = features_only
         
-        self.is_too_deep = False # Flag to indicate if the network is too deep
-        self._jumpstart_channels = 32
-        
+        # TODO: Parsed layers must be obtained inside this GenericNetwork class
+        self._jumpstart_channels = int(self.config['GeneralNetwork']['jumpstart_channels'])
         self.layers = nn.ModuleList()
-        # TODO: Change the logics here to be more dynamic
-        if parsed_layers[-1]['layer_type'] == 'DetectionHeadYOLOv3':
-            self.outchannels = [
-                parsed_layers[-1]['outchannel1_index'],
-                parsed_layers[-1]['outchannel2_index'],
-                parsed_layers[-1]['outchannel3_index'],
-            ]
-        elif parsed_layers[-1]['layer_type'] == 'DetectionHeadYOLOv3_SmallObjects':
-            self.outchannels = [
-                parsed_layers[-1]['outchannel1_index'],
-                parsed_layers[-1]['outchannel2_index'],
-            ]
-        self.outchannels_size = []
-
-    # TODO: Parsed layers must be obtained inside this GenericNetwork class
-
 
 
     # TODO: Change builder to separate sections for heads
-    def build(self, parsed_layers, input_channels, input_height, input_width, num_classes):
-        config = configparser.ConfigParser()
-        config.read('config.ini')
+    def build(self):
+        """
+        Builds a neural network from the parsed layer configurations.
 
-        current_channels, current_height, current_width = input_channels, input_height, input_width
+        Parameters:
+        -----------
+        parsed_layers : list
+            List of layer configurations.
+        input_channels : int
+            The number of input channels (e.g., 3 for RGB images).
+        input_height : int
+            The height of the input images.
+        input_width : int
+            The width of the input images.
+        num_classes : int
+            The number of output classes for the classification task.
         
-        # Jumpstart layer
-        self.jumpstart = convolutions.ConvAct(
-            in_channels=input_channels,
+        Returns:
+        --------
+        None
+        """
+        # Initial input dimensions
+        parsed_layers = self.parsed_layers
+        num_classes = self.num_classes
+        dims = (self.input_channels, self.input_height, self.input_width)
+        # Jumpstart layer --> Expanding the number of channels to the desired number
+        jumpstart = convolutions.ConvAct(
+            in_channels=self.input_channels,
             out_channels=self._jumpstart_channels,
             kernel_size=1,
             stride=1,
             padding=0,
-            activation=activations.LeakyReLU,
-        )
-        current_channels = self._jumpstart_channels
-
-        # Layers proper
-        for layer_idx,layer in enumerate(parsed_layers):
-            layer_type = layer['layer_type']
-
-            if layer_type == 'ConvAct':
-                kernel_size = int(layer.get(
-                    'kernel_size',
-                    config['ConvAct']['default_kernel_size']
-                ))
-                stride = int(layer.get(
-                    'stride',
-                    config['ConvAct']['default_stride']
-                ))
-                padding = int(layer.get(
-                    'padding',
-                    config['ConvAct']['default_padding']
-                ))
-                out_channels_coeff = float(layer.get(
-                    'out_channels_coefficient',
-                    config['ConvAct']['default_out_channels_coefficient']
-                ))
-
-                if kernel_size > current_height or kernel_size > current_width:
-                    self.is_too_deep = True
-                    break
-
-                out_channels = int(current_channels * out_channels_coeff)
-
-                layer = convolutions.ConvAct(
-                    in_channels=current_channels,
-                    out_channels=out_channels,
-                    kernel_size=kernel_size,
-                    stride=stride,
-                    padding=padding,
-                    activation=self.get_activation_fn(layer['activation']),
-                )
-                current_channels = out_channels
-                current_height = ((current_height - kernel_size + 2 * padding) // stride) + 1
-                current_width = ((current_width - kernel_size + 2 * padding) // stride) + 1
-
-            elif layer_type == 'ConvBnAct':
-                kernel_size = int(layer.get(
-                    'kernel_size',
-                    config['ConvBnAct']['default_kernel_size']
-                ))
-                stride = int(layer.get(
-                    'stride',
-                    config['ConvBnAct']['default_stride']
-                ))
-                padding = int(layer.get(
-                    'padding',
-                    config['ConvBnAct']['default_padding']
-                ))
-                out_channels_coeff = float(layer.get(
-                    'out_channels_coefficient',
-                    config['ConvBnAct']['default_out_channels_coefficient']
-                ))
-
-                if kernel_size > current_height or kernel_size > current_width:
-                    self.is_too_deep = True
-                    break
-
-                out_channels = int(current_channels * out_channels_coeff)
-
-                layer = convolutions.ConvBnAct(
-                    in_channels=current_channels,
-                    out_channels=out_channels,
-                    kernel_size=kernel_size,
-                    stride=stride,
-                    padding=padding,
-                    activation=self.get_activation_fn(layer['activation']),
-                )
-                current_channels = out_channels
-                current_height = ((current_height - kernel_size + 2 * padding) // stride) + 1
-                current_width = ((current_width - kernel_size + 2 * padding) // stride) + 1
-
-            elif layer_type == 'ConvSE':
-                kernel_size = int(layer.get(
-                    'kernel_size',
-                    config['ConvSE']['default_kernel_size']
-                ))
-                stride = int(layer.get(
-                    'stride',
-                    config['ConvSE']['default_stride']
-                ))
-                padding = int(layer.get(
-                    'padding',
-                    config['ConvSE']['default_padding']
-                ))
-                out_channels_coeff = float(layer.get(
-                    'out_channels_coefficient',
-                    config['ConvSE']['default_out_channels_coefficient']
-                ))
-
-                if kernel_size > current_height or kernel_size > current_width:
-                    self.is_too_deep = True
-                    break
-
-                out_channels = int(current_channels * out_channels_coeff)
-
-                layer = convolutions.ConvSE(
-                    in_channels=current_channels,
-                    out_channels=out_channels,
-                    kernel_size=kernel_size,
-                    stride=stride,
-                    padding=padding,
-                    activation=self.get_activation_fn(layer['activation']),
-                )
-                current_channels = out_channels
-                current_height = ((current_height - kernel_size + 2 * padding) // stride) + 1
-                current_width = ((current_width - kernel_size + 2 * padding) // stride) + 1
-
-            elif layer_type == 'MBConv':
-                # Extracting MBConv parameters
-                expansion_factor = int(layer.get(
-                    'expansion_factor',
-                    config['MBConv']['default_expansion_factor']
-                ))
-                dw_kernel_size = int(layer.get(
-                    'dw_kernel_size',
-                    config['MBConv']['default_dw_kernel_size']
-                ))
-
-                # Creating MBConv layer
-                layer = convolutions.MBConv(
-                    in_channels=current_channels,
-                    out_channels=current_channels,
-                    expansion_factor=expansion_factor,
-                    dw_kernel_size=dw_kernel_size,
-                    activation=self.get_activation_fn(layer['activation']),
-                )
-
-                current_channels = current_channels
-                current_height = current_height
-                current_width = current_width
-
-            elif layer_type == 'MBConvNoRes':
-                # Extracting MBConv parameters
-                expansion_factor = int(layer.get(
-                    'expansion_factor',
-                    config['MBConvNoRes']['default_expansion_factor']
-                ))
-                dw_kernel_size = int(layer.get(
-                    'dw_kernel_size',
-                    config['MBConvNoRes']['default_dw_kernel_size']
-                ))
-
-                # Creating MBConv layer
-                layer = convolutions.MBConvNoRes(
-                    in_channels=current_channels,
-                    out_channels=current_channels,
-                    dw_kernel_size=dw_kernel_size,
-                    expansion_factor=expansion_factor,
-                    activation=self.get_activation_fn(layer['activation']),
-                )
-
-                current_channels = current_channels
-                current_height = current_height
-                current_width = current_width
+            activation=activations.LeakyReLU,)
+        dims = (self._jumpstart_channels, self.input_height, self.input_width)
+        self.layers.append(jumpstart)
+        
+        # **- Initialize progress bar outside the loop -**
+        progress_bar = tqdm(total=len(parsed_layers), desc="Building Network", unit="layer")
+        
+        for layer_idx, layer in enumerate(parsed_layers): # Layer processing
             
-            elif layer_type == 'CSPConvBlock':
-                # Extracting CSPBlock parameters
-                out_channels_coeff = float(layer.get(
-                    'out_channels_coefficient',
-                    config['CSPConvBlock']['default_out_channels_coefficient']
-                ))
-                num_blocks = int(layer.get(
-                    'num_blocks',
-                    config['CSPConvBlock']['default_num_blocks']
-                ))
-                out_channels = int(current_channels * out_channels_coeff)
-
-                layer = convolutions.CSPConvBlock(
-                    in_channels=current_channels,
-                    #out_channels=current_channels,
-                    num_blocks=num_blocks,
-                    activation=self.get_activation_fn(layer['activation']),
-                )
-                current_channels = out_channels
-                current_height = current_height
-                current_width = current_width
-
-            elif layer_type == 'CSPMBConvBlock':
-                # Extracting CSPBlock parameters
-                out_channels_coeff = float(layer.get(
-                    'out_channels_coefficient',
-                    config['CSPMBConvBlock']['default_out_channels_coefficient']
-                ))
-                num_blocks = int(layer.get(
-                    'num_blocks',
-                    config['CSPMBConvBlock']['default_num_blocks']
-                ))
-                expansion_factor = int(layer.get(
-                    'expansion_factor',
-                    config['CSPMBConvBlock']['default_expansion_factor']
-                ))
-                dw_kernel_size = int(layer.get(
-                    'dw_kernel_size',
-                    config['CSPMBConvBlock']['default_dw_kernel_size']
-                ))
-                out_channels = int(current_channels * out_channels_coeff)
-
-                layer = convolutions.CSPMBConvBlock(
-                    in_channels=current_channels,
-                    #out_channels=current_channels,
-                    expansion_factor=expansion_factor,
-                    dw_kernel_size=dw_kernel_size,
-                    num_blocks=num_blocks,
-                    activation=self.get_activation_fn(layer['activation']),
-                )
-                current_channels = out_channels
-
-            elif layer_type == 'DenseNetBlock':
-                out_channels_coeff = float(layer.get(
-                    'out_channels_coefficient',
-                    config['DenseNetBlock']['default_out_channels_coefficient']
-                ))
-
-                out_channels = int(current_channels * out_channels_coeff)
-
-                layer = convolutions.DenseNetBlock(
-                    in_channels=current_channels,
-                    out_channels=out_channels,
-                    activation=self.get_activation_fn(layer['activation']),
-                )
-                current_channels = current_channels + out_channels
-                current_height = current_height
-                current_width = current_width
-
-            elif layer_type == 'ResNetBlock':
-                out_channels_coeff = float(layer.get(
-                    'out_channels_coefficient',
-                    config['ResNetBlock']['default_out_channels_coefficient']
-                ))
-                reduction_factor = int(layer.get(
-                    'reduction_factor',
-                    config['ResNetBlock']['default_reduction_factor']
-                ))
-
-                out_channels = int(current_channels * out_channels_coeff)
-
-                layer = convolutions.ResNetBlock(
-                    in_channels=current_channels,
-                    out_channels=current_channels,
-                    activation=self.get_activation_fn(layer['activation']),
-                )
-                current_channels = current_channels
-                current_height = current_height
-                current_width = current_width
-
-            elif layer_type == 'AvgPool':
-                kernel_size = int(layer.get(
-                    'kernel_size',
-                    config['AvgPool']['default_kernel_size']
-                ))
-                stride = int(layer.get(
-                    'stride',
-                    config['AvgPool']['default_stride']
-                ))
-
-                if kernel_size > current_height or kernel_size > current_width:
-                    self.is_too_deep = True
-                    break
-
-                layer = pooling.AvgPool(kernel_size=kernel_size, stride=stride)
-
-                current_channels = current_channels
-                current_height = ((current_height - kernel_size) // stride) + 1
-                current_width = ((current_width - kernel_size) // stride) + 1
-
-            elif layer_type == 'MaxPool':
-                kernel_size = int(layer.get(
-                    'kernel_size',
-                    config['MaxPool']['default_kernel_size']
-                ))
-                stride = int(layer.get(
-                    'stride',
-                    config['MaxPool']['default_stride']
-                ))
-
-                if kernel_size > current_height or kernel_size > current_width:
-                    self.is_too_deep = True
-                    break
-
-                layer = pooling.MaxPool(kernel_size=kernel_size, stride=stride)
-
-                current_channels = current_channels
-                current_height = ((current_height - kernel_size) // stride) + 1
-                current_width = ((current_width - kernel_size) // stride) + 1
+            # Convert the layer configuration into a PyTorch layer and update dimensions
+            torchlayer, dims = layer_torcher(layer, dims)
             
-            elif layer_type == 'Identity':
-                layer = nn.Identity()
-
-                current_channels = current_channels
-                current_height = current_height
-                current_width = current_width
-
-            elif layer_type == 'ClassificationHead':
-                # Calculate the input size for ClassificationHead
-                num_classes = int(config['ClassificationHead']['num_classes']) # Useless, probably?
-                input_size_for_head = current_height * current_width * current_channels
-                layer = heads.ClassificationHead(input_size=input_size_for_head, num_classes=num_classes)
-
-            elif layer_type == 'DetectionHeadYOLOv3':
-                # Calculate the input size for DetectionHeadYOLOv3
-                self.yolo_conv_l = convolutions.ConvBnAct(self.outchannels_size[2], 1024, 1)
-                self.yolo_conv_m = convolutions.ConvBnAct(self.outchannels_size[1], 512, 1)
-                self.yolo_conv_s = convolutions.ConvBnAct(self.outchannels_size[0], 256, 1)
-                layer = heads.DetectionHeadYOLOv3(num_classes=num_classes)
-
-            elif layer_type == 'DetectionHeadYOLOv3_SmallObjects':
-                # Calculate the input size for DetectionHeadYOLOv3_SmallObjects
-                self.yolo_conv_m = convolutions.ConvBnAct(self.outchannels_size[1], 512, 1)
-                self.yolo_conv_s = convolutions.ConvBnAct(self.outchannels_size[0], 256, 1)
-                layer = heads.DetectionHeadYOLOv3_SmallObjects(num_classes=num_classes)
-
-            else:
-                raise ValueError(f"Unknown layer type: {layer_type}")
+            # Update progress bar with current layer status
+            progress_bar.set_description(f"Building layer {layer_idx + 1}/{len(parsed_layers)}: {layer['layer_type']}")
+            progress_bar.update(1)
             
-            self.layers.append(layer)
+            # Extract the current height and width after layer application
+            current_channels, current_height, current_width = dims
+            
+            # Extract kernel size for assertion
+            kernel_size = layer.get('kernel_size', 1)  # Default to 1 if not found
+            if 'kernel_size' in layer.keys():
+                kernel_size = int(layer['kernel_size'])
+            
+            # Assert that the kernel size is appropriate for the current dimensions
+            assert kernel_size <= current_height and kernel_size <= current_width, \
+                f"Kernel size {kernel_size} is too large for the current dimensions: Heigt=({current_height}), Width=({current_width})"
+            
+            # Add the constructed layer to the model
+            self.layers.append(torchlayer)
 
-            if current_height == 1 or current_width == 1:
-                self.is_too_deep = True
-                break
+        # Close the progress bar
+        progress_bar.close()
 
 
-    @staticmethod
-    def get_activation_fn(activation=activations.GELU):
-        if activation == 'ReLU':
-            return activations.ReLU
-        elif activation == 'GELU':
-            return activations.GELU
-        elif activation == 'LeakyReLU':
-            return activations.LeakyReLU
-        # Add more activation functions as needed
-        else:
-            raise ValueError(f"Unknown activation function: {activation}")
+    def print_summary(self, input_size=(3, 224, 224)):
+        return torchsummary.summary(self, input_size)
+
+
+    def get_param_size(self):
+        """
+        Calculate the total size of the model parameters in megabytes (MB).
+
+        This method sums up the number of elements in all the parameters of the model,
+        assuming each parameter is a 32-bit float (4 bytes), and converts the total size
+        to megabytes.
+
+        Returns:
+            float: The total size of the model parameters in MB, rounded to three decimal places.
+        """
+        # Extract the total parameters and calculate the size in MB
+        total_params = sum(p.numel() for p in self.parameters())
+        params_size_mb = total_params * 4 / (1024 ** 2)  # Assuming 4 bytes per parameter (float32)
+        return round(params_size_mb, 3)
+
 
     def forward(self, x):
-        if torch.isnan(x).any():
-            print(f"NaNs found in the input!")
+        """
+        Defines the forward pass of the network with optimized performance.
         
-        x = self.jumpstart(x)
-        if torch.isnan(x).any():
-            print(f"NaNs found after the jumpstart layer")
+        Parameters:
+        -----------
+        x : torch.Tensor
+            Input tensor to the model.
         
-        outchannel_tensors = []
+        Returns:
+        --------
+        torch.Tensor
+            Output tensor after passing through all layers.
+        """
+        # Check for NaNs in the input tensor once
+        if torch.isnan(x).any():
+            raise ValueError("NaNs detected in the input tensor.")
+
+        # Process layers in the network
         for layer_idx, layer in enumerate(self.layers):
 
-            if torch.isnan(x).any():
-                print(f"NaNs found in raw output in training before layer {layer_idx}")
-            #print(f"Shape of input before layer {layer_idx} is {x.shape}")
-
             if isinstance(layer, heads.ClassificationHead):
-                # Flatten the output before feeding it into the ClassificationHead
+                # This reduces the feature map to a fixed size (e.g., 1x1)
+                x = nn.AdaptiveAvgPool2d((6, 6))(x)
+                # Efficiently flatten the output before the classification head
                 x = x.view(x.size(0), -1)
 
-
             x = layer(x)
-
-            if layer_idx in self.outchannels:
-                outchannel_tensors.append(x)
-
         return x

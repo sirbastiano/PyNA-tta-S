@@ -4,6 +4,10 @@ from typing import List, Optional
 import logging
 import configparser
 
+from pynattas.builder.netBuilder import GenericNetwork
+import torch
+
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -20,7 +24,11 @@ class Individual:
         Parameters:
         max_layers (int): Maximum number of layers for the architecture.
         """
-        self.architecture: str = self.generate_random_architecture_code(max_layers=max_layers)
+        sanity = False
+        while not sanity:
+            self.architecture: str = self.generate_random_architecture_code(max_layers=max_layers)
+            sanity = self.sanity_check()
+        
         self.chromosome: List[str] = self.architecture2chromosome(input_architecture=self.architecture)
         self.fitness: float = 0.0
 
@@ -100,6 +108,30 @@ class Individual:
         new_individual.fitness = self.fitness
         return new_individual
 
+
+    def sanity_check(self):
+        try:
+            Net = GenericNetwork(
+                    self.architecture, 
+                    input_channels=3,
+                    input_height=224,
+                    input_width=224,
+                    num_classes=2)
+
+            Net.build()
+
+            x = torch.randn(1, 3, 224, 224)
+            Net(x) # Forward pass test
+            model_size = Net.get_param_size()
+            valid = True
+        except Exception as e:
+            print(f"Error: {e}")
+            valid = False
+        finally:
+            # Reset memory
+            torch.cuda.empty_cache()
+            del Net
+            return valid
 
 
 if __name__ == "__main__":

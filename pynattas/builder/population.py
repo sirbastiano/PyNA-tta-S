@@ -1,6 +1,4 @@
 from pynattas.builder.individual import Individual
-from pynattas.builder.netBuilder import GenericNetwork
-
 
 class Population:
     def __init__(self, max_layers: int, n_individuals: int):
@@ -66,6 +64,8 @@ class Population:
         with open(f"{logs_directory}/population_{generation}.txt", 'w') as file:
             for individual in self.population:
                 file.write(f"Architecture: {individual.architecture}, Fitness: {individual.fitness}\n")
+
+
 
 if __name__ == '__main__':
     pop = Population(max_layers=5, n_individuals=10)

@@ -4,7 +4,7 @@ import configparser
 import torchsummary
 
 from ..blocks import *
-from .logics import layer_torcher
+from .toTorch import layer_torcher
 from pynattas.utils import layerCoder
 from tqdm import tqdm
 

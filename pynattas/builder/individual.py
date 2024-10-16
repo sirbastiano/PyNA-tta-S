@@ -1,22 +1,16 @@
-import random
-from pynattas.utils import layerCoder
-from typing import List, Optional
-import logging
-import configparser
-
-from pynattas.builder.netBuilder import GenericNetwork
 import torch
+import random
+from typing import List, Optional
+from configparser import ConfigParser
+import copy
+from pynattas.utils import layerCoder
+from pynattas.utils.layerCoder import ARCHITECTURE_ENDER as ENDER
+from pynattas.builder.netBuilder import GenericNetwork
 
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-
-ENDER = layerCoder.ARCHITECTURE_ENDER
 
 class Individual:
-    def __init__(self, max_layers: int):
+    def __init__(self, config_path: Optional[str] = 'config.ini', verbose: bool = False):
         """
         Initializes an individual with a random architecture code, converts it to a chromosome, 
         and sets the fitness to zero.
@@ -24,15 +18,19 @@ class Individual:
         Parameters:
         max_layers (int): Maximum number of layers for the architecture.
         """
-        sanity = False
-        while not sanity:
-            self.architecture: str = self.generate_random_architecture_code(max_layers=max_layers)
-            sanity = self.sanity_check()
+        self.config_path = config_path        
         
+        # Private attributes:
+        self._fitness: float = 0.0
+        self._architecture: str = self.generate_random_architecture_code()
+        # Public attributes:
         self.chromosome: List[str] = self.architecture2chromosome(input_architecture=self.architecture)
-        self.fitness: float = 0.0
 
-    def generate_random_architecture_code(self, max_layers: int, config_path: Optional[str] = 'config.ini') -> str:
+    @property
+    def architecture(self) -> str:
+        return self._architecture
+
+    def generate_random_architecture_code(self) -> str:
         """
         Generates a random architecture code with a variable number of layers, based on a specified task.
 
@@ -43,28 +41,29 @@ class Individual:
         Returns:
         str: Generated architecture code.
         """
-        # Read configuration file
-        config = configparser.ConfigParser()
-        config.read(config_path)
-        task = layerCoder.get_task_from_config(config_path)
-
-        min_layers = 3 if task == 'D' else config.getint('GeneralNetwork', 'min_layers')
-        encoder_layer_count = random.randint(min_layers, max_layers)
         
+        task = layerCoder.get_task_from_config(self.config_path)
+
+        min_layers = 3 if task == 'D' else self.config.getint('GeneralNetwork', 'min_layers')
+        max_layers = self.config.getint('GeneralNetwork', 'max_layers')
+        
+        encoder_layer_count = random.randint(min_layers, max_layers)
         # Generate architecture code
         architecture_code = ''.join(
             f"{layerCoder.generate_layer_code()}{ENDER}{layerCoder.generate_pooling_layer_code()}{ENDER}"
             for _ in range(encoder_layer_count)
         )
         
-        logger.info(f"This architecture has {encoder_layer_count} encoder layers.")
-        
         # **** Add head code and enders ****
         architecture_code += f"{layerCoder.generate_head_code(task, encoder_layer_count)}{ENDER}"
         architecture_code += ENDER
-
-        return architecture_code
-
+        
+        # Check if the architecture code is valid
+        if self.sanity_checking(architecture_code):
+            return architecture_code
+        else:
+            # Use recursion to generate a new architecture code
+            return self.generate_random_architecture_code()
 
     def architecture2chromosome(self, input_architecture: str) -> List[str]:
         """
@@ -80,7 +79,6 @@ class Individual:
         # Split the architecture code, remove trailing empty elements
         return [gene for gene in input_architecture.split(ENDER) if gene]
 
-
     def chromosome2architecture(self, input_chromosome: List[str]) -> str:
         """
         Converts the chromosome list back into an architecture code, ensuring that it ends with double ender.
@@ -93,7 +91,6 @@ class Individual:
         """
         return ENDER.join(input_chromosome) + f'{ENDER}{ENDER}'
 
-
     def copy(self) -> 'Individual':
         """
         Creates a deep copy of the current individual, preserving its architecture, chromosome, 
@@ -102,36 +99,56 @@ class Individual:
         Returns:
         Individual: A deep copy of the current individual.
         """
-        new_individual = Individual(max_layers=len(self.chromosome))
-        new_individual.architecture = self.architecture
-        new_individual.chromosome = self.chromosome.copy()  # Deep copy the list
-        new_individual.fitness = self.fitness
-        return new_individual
+        return copy.deepcopy(self)
 
-
-    def sanity_check(self):
+    def sanity_checking(self, code: str) -> bool:
+        Net = GenericNetwork(
+                code, 
+                input_channels=3,
+                input_height=128,
+                input_width=128,
+                num_classes=2)
         try:
-            Net = GenericNetwork(
-                    self.architecture, 
-                    input_channels=3,
-                    input_height=224,
-                    input_width=224,
-                    num_classes=2)
+            Net.build() # Build the network test
+        except:
+            return False
+        
+        self.model_size = Net.get_param_size()
+        # TODO: config 500 in the config.ini
+        if self.model_size < 500:
+            self.Network = Net
+            try:
+                x = torch.randn(1, 3, 128, 128)
+                self.Network(x)  # Forward pass test
+                return True
+            except:
+                return False
+            finally:
+                # Reset memory
+                torch.cuda.empty_cache()
+                return False
+        else:
+            return False
 
-            Net.build()
 
-            x = torch.randn(1, 3, 224, 224)
-            Net(x) # Forward pass test
-            model_size = Net.get_param_size()
-            valid = True
-        except Exception as e:
-            print(f"Error: {e}")
-            valid = False
-        finally:
-            # Reset memory
-            torch.cuda.empty_cache()
-            del Net
-            return valid
+    # Private methods:
+    @property
+    def config(self) -> ConfigParser:
+        config = ConfigParser()
+        config.read(self.config_path)
+        return config
+
+    @property
+    def fitness(self) -> float:
+        return self._fitness
+    
+    @fitness.setter
+    def fitness(self, value: float):
+        if value < 0:
+            raise ValueError("Fitness value must be non-negative.")
+        else:
+            self._fitness = value
+
 
 
 if __name__ == "__main__":

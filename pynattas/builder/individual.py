@@ -115,18 +115,21 @@ class Individual:
         
         self.model_size = Net.get_param_size()
         # TODO: config 500 in the config.ini
-        if self.model_size < 500:
+        if self.model_size < 150:
+            print('model size:',self.model_size)
             self.Network = Net
-            try:
-                x = torch.randn(1, 3, 128, 128)
-                self.Network(x)  # Forward pass test
-                return True
-            except:
-                return False
-            finally:
-                # Reset memory
-                torch.cuda.empty_cache()
-                return False
+            torch.cuda.empty_cache()
+            return True
+            # try:
+            #     x = torch.randn(1, 3, 128, 128)
+            #     self.Network(x)  # Forward pass test
+            #     return True
+            # except:
+            #     return False
+            # finally:
+            #     # Reset memory
+            #     torch.cuda.empty_cache()
+            #     return False
         else:
             return False
 

@@ -138,6 +138,8 @@ class GenericNetwork(nn.Module):
             
             # Add the constructed layer to the model
             self.layers.append(torchlayer)
+            del torchlayer
+            torch.cuda.empty_cache()
 
         # Close the progress bar
         progress_bar.close()
